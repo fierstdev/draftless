@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import {
-	Settings, Moon, Sun, Check, Laptop
-} from "lucide-react"
+	Settings, Moon, Sun, Check, Laptop, MonitorSmartphone
+} from 'lucide-react';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +16,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useTheme } from "@/lib/theme-provider"
 import { Badge } from "@/components/ui/badge"
+import {PWAInstall} from '@/components/PWAInstall.tsx';
 
 export function SettingsDialog() {
 	const { setTheme, theme } = useTheme()
@@ -122,12 +123,25 @@ export function SettingsDialog() {
 						</TabsContent>
 					</Tabs>
 				</div>
+
+				{/* Footer with System Info & PWA Install */}
+				<div className="px-6 py-4 bg-muted/10 border-t border-border flex items-center justify-between">
+					<div className="flex flex-col gap-0.5">
+						<span className="text-xs font-medium text-foreground">DraftLess System</span>
+						<div className="flex items-center gap-1.5 text-muted-foreground">
+							<MonitorSmartphone className="size-3" />
+							<span className="text-[10px] font-mono">v0.1.0 • Local-First</span>
+						</div>
+					</div>
+
+					<PWAInstall />
+				</div>
 			</DialogContent>
 		</Dialog>
 	)
 }
 
-function ThemeCard({ label, icon, active, onClick }: any) {
+function ThemeCard({label, icon, active, onClick }: any) {
 	return (
 		<button
 			onClick={onClick}
