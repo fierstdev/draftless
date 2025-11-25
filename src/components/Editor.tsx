@@ -21,7 +21,7 @@ import {
 import clsx from 'clsx'
 import {BubbleMenu, FloatingMenu} from '@tiptap/react/menus';
 
-export function Editor({ ydoc, docId }: { ydoc: Y.Doc, docId: string }) {
+export function Editor({ ydoc, docId, projectDoc }: { ydoc: Y.Doc, docId: string, projectDoc: Y.Doc }) {
 	const { setEditor, setCollabStatus, setWordCount } = useStore()
 	const [isSynced, setIsSynced] = useState(false)
 
@@ -66,7 +66,7 @@ export function Editor({ ydoc, docId }: { ydoc: Y.Doc, docId: string }) {
 			FloatingMenuExtension,
 			Typography,
 			CharacterCount,
-			EntityHighlighter(ydoc),
+			EntityHighlighter(projectDoc),
 		],
 		editorProps: {
 			attributes: {
@@ -76,7 +76,7 @@ export function Editor({ ydoc, docId }: { ydoc: Y.Doc, docId: string }) {
 		onUpdate: ({ editor }) => {
 			setWordCount(editor.storage.characterCount.words())
 		},
-	}, [ydoc, isSynced]) // Re-init if doc or sync state changes
+	}, [ydoc, isSynced, projectDoc]) // Re-init if doc or sync state changes
 
 	// 3. SYNC TO STORE
 	useEffect(() => {
@@ -86,6 +86,24 @@ export function Editor({ ydoc, docId }: { ydoc: Y.Doc, docId: string }) {
 		}
 		return () => setEditor(null)
 	}, [editor, isSynced, setEditor, setWordCount])
+
+	// 4. REACTIVITY FIX: Listen to ProjectDoc (Codex) changes
+	useEffect(() => {
+		if (!editor || editor.isDestroyed) return
+
+		const codexMap = projectDoc.getMap('draftless-codex')
+
+		const handleCodexChange = () => {
+			// Force re-render of decorations
+			editor.view.dispatch(editor.state.tr)
+		}
+
+		codexMap.observe(handleCodexChange)
+
+		return () => {
+			codexMap.unobserve(handleCodexChange)
+		}
+	}, [editor, projectDoc])
 
 	// LOADING VIEW
 	if (!isSynced || !editor) {
@@ -99,7 +117,7 @@ export function Editor({ ydoc, docId }: { ydoc: Y.Doc, docId: string }) {
 
 	return (
 		<div className="relative w-full max-w-3xl mx-auto mb-24">
-			<CodexOverlay ydoc={ydoc} />
+			<CodexOverlay editor={editor} projectDoc={projectDoc} />
 
 			<FloatingMenu editor={editor} pluginKey={"floating-menu"} className="flex gap-1">
 				<div className="flex items-center gap-1 bg-popover shadow-lg shadow-black/5 border border-border p-1 rounded-lg">

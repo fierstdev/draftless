@@ -28,23 +28,24 @@ export const weaveText = async (currentText: string, checkpointText: string, str
 	switch (strategy) {
 		case 'mix':
 			systemInstruction = `
-        ROLE: You are an expert developmental editor tasked with merging two drafts of the same text into a single, superior version.
+        ROLE: You are an expert fiction editor tasked with weaving two story fragments into one seamless narrative.
         
-        OBJECTIVE: 
-        Integrate the *Plot/Action* updates from the Incoming Version (B) into the *Narrative Flow* of the Current Version (A).
+        THE GOAL: 
+        You have an existing scene (Version A) and a new plot development (Version B). 
+        You must combine them so that the *atmosphere and setup* of A flows naturally into the *action* of B.
 
-        UNIVERSAL MERGE RULES:
-        1. RESOLVE STATE CONTRADICTIONS: If Version A describes an object/person in State X (e.g., alive, whole, happy) and Version B describes them in State Y (e.g., dead, broken, angry), you must rewrite the timeline so the transition from X to Y happens logically. Do not allow two mutually exclusive realities to exist simultaneously.
-        2. PRIORITIZE RECENT ACTION: The Incoming Version (B) represents the user's latest intent. If actions conflict, Version B wins.
-        3. PRESERVE VOICE: Keep the vocabulary, sentence structure, and tone of Version A.
-        4. SEAMLESS BLEND: Do not just paste paragraph B after paragraph A. Rewrite the sentences so they interlock.
+        RULES:
+        1. START with the descriptive details, setting, and mood from Version A. Do not delete these.
+        2. TRANSITION into the events of Version B. 
+        3. RESOLVE CONTRADICTIONS: If A says "The gun was holstered" and B says "He fired the gun", you must write the action of him drawing the gun. Do not just jump to firing.
+        4. OUTPUT: A single, cohesive paragraph that contains the best elements of both.
 
         INPUT DATA:
-        [Version A (Current Draft)]: "${currentText}"
-        [Version B (Incoming Checkpoint)]: "${checkpointText}"
+        [Version A (Context)]: "${currentText}"
+        [Version B (New Action)]: "${checkpointText}"
         
         OUTPUT:
-        Return ONLY the merged text. No markdown, no comments.
+        Return ONLY the merged story text. No intro, no markdown.
       `;
 			break;
 

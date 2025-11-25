@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { type CodexEntity, CodexManager } from '@/lib/codex'
-import * as Y from 'yjs'
+import { Editor } from '@tiptap/react'
 import {
 	HoverCard,
 	HoverCardContent,
@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/hover-card"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, User, Box, Book, Sparkles } from 'lucide-react'
+import * as Y from 'yjs'
 
 const TypeIcon = {
 	character: User,
@@ -16,25 +17,41 @@ const TypeIcon = {
 	lore: Book
 }
 
-export function CodexOverlay({ ydoc }: { ydoc: Y.Doc }) {
+// FIX 1: Accept projectDoc prop
+export function CodexOverlay({ editor, projectDoc }: { editor: Editor | null, projectDoc: Y.Doc }) {
 	const [entity, setEntity] = useState<CodexEntity | null>(null)
 	const [position, setPosition] = useState<{ x: number, y: number } | null>(null)
 	const [isOpen, setIsOpen] = useState(false)
 
 	useEffect(() => {
-		const codex = new CodexManager(ydoc)
+		// 1. Safety Check: Ensure editor exists and isn't destroyed
+		if (!editor || editor.isDestroyed) return
 
-		// FIX: Explicitly type the event as MouseEvent
+		let dom: HTMLElement
+
+		// 2. Defensive Access: Tiptap throws if 'view' is accessed too early
+		try {
+			if (!editor.view || !editor.view.dom) return
+			dom = editor.view.dom as HTMLElement
+		} catch (e) {
+			return
+		}
+
+		// FIX 2: Use the Project Doc to find entities (The "Library" Database)
+		// instead of the Chapter Doc (The "Editor" Database)
+		const codex = new CodexManager(projectDoc)
+
 		const handleMouseOver = (e: MouseEvent) => {
 			const target = e.target as HTMLElement
 
 			if (target.classList.contains('entity-highlight')) {
 				const id = target.getAttribute('data-entity-id')
 				if (id) {
-					const data = codex.getAll().find(e => e.id === id)
+					const data = codex.getAll().find(item => item.id === id)
 					if (data) {
 						const rect = target.getBoundingClientRect()
 						setEntity(data)
+						// Center the tooltip above the text
 						setPosition({
 							x: rect.left + (rect.width / 2),
 							y: rect.bottom
@@ -47,26 +64,20 @@ export function CodexOverlay({ ydoc }: { ydoc: Y.Doc }) {
 			setIsOpen(false)
 		}
 
-		// Cast the selector result to HTMLElement to satisfy TypeScript event map
-		const editorDom = document.querySelector('.ProseMirror') as HTMLElement | null
-
-		if (editorDom) {
-			// Now TypeScript knows this element supports 'mouseover' with MouseEvent
-			editorDom.addEventListener('mouseover', handleMouseOver)
-		}
+		// 3. Safe Attachment
+		dom.addEventListener('mouseover', handleMouseOver)
 
 		return () => {
-			if (editorDom) editorDom.removeEventListener('mouseover', handleMouseOver)
+			dom.removeEventListener('mouseover', handleMouseOver)
 		}
-	}, [ydoc])
+	}, [editor, projectDoc]) // Re-run if projectDoc changes
 
 	if (!entity || !position) return null
 
-	const Icon = TypeIcon[entity.type] || Sparkles
+	const Icon = TypeIcon[entity.type as keyof typeof TypeIcon] || Sparkles
 
 	return (
 		<HoverCard open={isOpen} onOpenChange={setIsOpen} openDelay={0} closeDelay={0}>
-			{/* VIRTUAL TRIGGER: An invisible point we move to the hover location */}
 			<HoverCardTrigger asChild>
 				<div
 					style={{
@@ -81,21 +92,20 @@ export function CodexOverlay({ ydoc }: { ydoc: Y.Doc }) {
 			</HoverCardTrigger>
 
 			<HoverCardContent
-				className="w-72 p-0 overflow-hidden border-border shadow-xl"
+				className="w-72 p-0 overflow-hidden border-border shadow-xl z-50"
 				side="bottom"
 				align="center"
 				sideOffset={5}
 			>
-				{/* Colored Header Banner */}
 				<div className="h-2 w-full" style={{ backgroundColor: entity.color }} />
 
-				<div className="p-4 bg-card">
+				<div className="p-4 bg-card text-card-foreground">
 					<div className="flex justify-between items-start mb-3">
 						<div className="flex items-center gap-2">
 							<div className="p-1.5 rounded-md bg-muted text-foreground">
 								<Icon className="w-4 h-4" />
 							</div>
-							<h4 className="text-sm font-bold text-foreground">{entity.name}</h4>
+							<h4 className="text-sm font-bold">{entity.name}</h4>
 						</div>
 						<Badge variant="outline" className="capitalize text-[10px]" style={{ borderColor: entity.color, color: entity.color }}>
 							{entity.type}

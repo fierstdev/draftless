@@ -130,7 +130,7 @@ function App() {
                         <div className="flex flex-1 flex-col gap-4 p-4 pt-0 bg-background/50">
                             <div className="mx-auto w-full max-w-4xl py-8">
                                 {activeFileId && chapterDoc ? (
-                                    <Editor key={activeFileId} ydoc={chapterDoc} docId={activeFileId} />
+                                    <Editor key={activeFileId} ydoc={chapterDoc} docId={activeFileId} projectDoc={projectDoc} />
                                 ) : (
                                     <div className="flex h-full items-center justify-center text-muted-foreground">Select a chapter to begin writing...</div>
                                 )}

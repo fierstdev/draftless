@@ -27,7 +27,7 @@ export const useStore = create<AppState>((set) => ({
 	setActiveFileId: (id) => set({ activeFileId: id }),
 
 	currentDoc: null,
-	setCurrentDoc: (doc) => set({ currentDoc: doc }),
+	setCurrentDoc: (doc) => set({ currentDoc: doc, activeFileId: null }),
 
 	editor: null,
 	setEditor: (editor) => set({ editor }),

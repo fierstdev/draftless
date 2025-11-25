@@ -49,13 +49,28 @@ interface Snapshot {
 
 const DB_VERSION = 4
 
-const getTextFromJson = (json: any): string => {
-	if (!json) return '';
-	if (json.text) return json.text;
-	if (Array.isArray(json.content)) {
-		return json.content.map((child: any) => getTextFromJson(child)).join('\n');
+const getTextFromJson = (node: any): string => {
+	if (!node) return ''
+
+	// 1. Leaf Node (Text)
+	if (node.type === 'text') {
+		return node.text || ''
 	}
-	return '';
+
+	// 2. Container Node (Doc, Paragraph, etc.)
+	if (node.content && Array.isArray(node.content)) {
+		// Join children directly (no spaces/newlines between words)
+		const childrenText = node.content.map((child: any) => getTextFromJson(child)).join('')
+
+		// Add newline ONLY after block-level elements
+		if (['paragraph', 'heading', 'blockquote', 'codeBlock'].includes(node.type)) {
+			return childrenText + '\n\n'
+		}
+
+		return childrenText
+	}
+
+	return ''
 }
 
 export function AppSidebar({ projectDoc, activeFileId, ...props }: { projectDoc: Y.Doc, activeFileId: string } & React.ComponentProps<typeof Sidebar>) {

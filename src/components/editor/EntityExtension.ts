@@ -23,25 +23,30 @@ export const EntityHighlighter = (ydoc: Y.Doc) => {
 							if (entities.length === 0) return DecorationSet.empty
 
 							doc.descendants((node, pos) => {
-								if (!node.isText) return
+								if (!node.isText || !node.text) return
 
-								const text = node.text || ''
+								const text = node.text
 
 								entities.forEach(entity => {
-									// Simple regex to find the name (case insensitive)
-									const regex = new RegExp(`\\b${entity.name}\\b`, 'gi')
+									// Escape regex special characters
+									const safeName = entity.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+									// Match whole words only, case insensitive
+									const regex = new RegExp(`\\b${safeName}\\b`, 'gi')
+
 									let match
 									while ((match = regex.exec(text)) !== null) {
 										const from = pos + match.index
 										const to = from + match[0].length
 
-										// Create a decoration that adds a class and data attributes
 										decorations.push(
 											Decoration.inline(from, to, {
 												nodeName: 'span',
-												class: `entity-highlight border-b-2 border-${entity.color}-400/50 cursor-help hover:bg-${entity.color}-50`,
+												// The class 'entity-highlight' is crucial for the HoverCard to find it
+												class: `entity-highlight border-b-2 cursor-help transition-colors hover:bg-muted/50 rounded-sm px-0.5`,
 												'data-entity-id': entity.id,
-												style: `border-bottom-color: ${entity.color};`
+												// Inject the color variable for the border
+												style: `border-color: ${entity.color};`
 											})
 										)
 									}
