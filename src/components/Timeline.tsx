@@ -150,10 +150,7 @@ export function Timeline({ checkpoints, currentCheckpointId, onRestore }: Timeli
 				maxZoom={1.5}
 				proOptions={{ hideAttribution: true }}
 			>
-				{/* NOTE: ReactFlow 'color' prop expects a hex/rgba string for the dots.
-            'var(--muted-foreground)' might not render dots in some browsers inside Canvas.
-            Using a class-based opacity on a hardcoded color is safer, or just minimal styling.
-        */}
+
 				<Background gap={24} color="#888" className="opacity-[0.15]" size={1} />
 
 				<Controls

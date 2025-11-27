@@ -101,7 +101,12 @@ export function AppSidebar({ projectDoc, activeFileId, ...props }: { projectDoc:
 	const [isGraphExpanded, setIsGraphExpanded] = useState(false)
 
 	const editor = useStore((state) => state.editor)
+	const openFile = useStore((state) => state.openFile)
+	const isSplitView = useStore((state) => state.isSplitView)
+	const primaryFileId = useStore((state) => state.primaryFileId)
+	const secondaryFileId = useStore((state) => state.secondaryFileId)
 	const setActiveFileId = useStore((state) => state.setActiveFileId)
+
 	const { state } = useSidebar()
 	const isCollapsed = state === 'collapsed'
 
@@ -191,20 +196,28 @@ export function AppSidebar({ projectDoc, activeFileId, ...props }: { projectDoc:
 	}
 
 	useEffect(() => {
-		if (!activeFileId) {
-			setSnapshots([])
-			return
-		}
+		let isMounted = true
 		const loadSnapshots = async () => {
+			// FIX: Handle empty state logic INSIDE the async function
+			if (!activeFileId) {
+				if (isMounted) setSnapshots([])
+				return
+			}
+
 			try {
 				const db = await initDB()
 				const all = await db.getAll('snapshots')
-				setSnapshots(all.sort((a, b) => b.timestamp - a.timestamp))
+				if (isMounted) {
+					setSnapshots(all.sort((a, b) => b.timestamp - a.timestamp))
+				}
 			} catch (err) {
 				console.error("Failed to load snapshots:", err)
 			}
 		}
+
 		loadSnapshots()
+
+		return () => { isMounted = false }
 	}, [activeFileId])
 
 	const handleSaveSnapshot = async () => {
@@ -316,24 +329,29 @@ export function AppSidebar({ projectDoc, activeFileId, ...props }: { projectDoc:
 							)}
 							<ScrollArea className="flex-1">
 								<div className="p-2 flex flex-col gap-1">
-									{files.map(file => (
-										<div
-											key={file.id}
-											onClick={() => setActiveFileId(file.id)}
-											className={`group flex items-center justify-between px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${activeFileId === file.id ? 'bg-sidebar-accent text-sidebar-primary font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'}`}
-										>
-											<div className="flex items-center gap-2">
-												{file.type === 'chapter' ? <FileText className="w-4 h-4 opacity-70" /> : <StickyNote className="w-4 h-4 opacity-70" />}
-												<span className="truncate">{file.title}</span>
-											</div>
-											<Button
-												variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-												onClick={(e) => handleDeleteFile(e, file.id)}
+									{files.map(file => {
+										const isActive = primaryFileId === file.id || (isSplitView && secondaryFileId === file.id);
+
+										return (
+											<div
+												key={file.id}
+												onClick={() => openFile(file.id)}
+												className={`group flex items-center justify-between px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${isActive ? 'bg-sidebar-accent text-sidebar-primary font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'}`}
 											>
-												<Trash2 className="w-3 h-3" />
-											</Button>
-										</div>
-									))}
+												<div className="flex items-center gap-2 overflow-hidden">
+													{file.type === 'chapter' ?
+														<FileText className="w-4 h-4 opacity-70 shrink-0"/> :
+														<StickyNote className="w-4 h-4 opacity-70 shrink-0"/>}
+													<span className="truncate">{file.title}</span>
+												</div>
+												<Button variant="ghost" size="icon"
+												        className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive shrink-0"
+												        onClick={(e) => handleDeleteFile(e, file.id)}>
+													<Trash2 className="w-3 h-3"/>
+												</Button>
+											</div>
+										);
+									})}
 								</div>
 							</ScrollArea>
 						</div>
@@ -345,7 +363,8 @@ export function AppSidebar({ projectDoc, activeFileId, ...props }: { projectDoc:
 							{!isCollapsed && (
 								<div className="p-4 space-y-4 border-b border-sidebar-border">
 									{!activeFileId ? (
-										<div className="text-xs text-center text-muted-foreground py-4">Select a chapter to view history</div>
+										<div className="text-xs text-center text-muted-foreground py-4">Select a chapter
+											to view history</div>
 									) : (
 										<>
 											<div className="flex gap-2">
@@ -356,12 +375,17 @@ export function AppSidebar({ projectDoc, activeFileId, ...props }: { projectDoc:
 													onKeyDown={(e) => e.key === 'Enter' && handleSaveSnapshot()}
 													className="h-8 bg-sidebar-accent/50 border-sidebar-border text-xs"
 												/>
-												<Button onClick={handleSaveSnapshot} disabled={!newSnapshotName} size="icon" className="h-8 w-8 bg-sidebar-primary text-sidebar-primary-foreground shrink-0">
-													<Plus className="w-4 h-4" />
+												<Button onClick={handleSaveSnapshot} disabled={!newSnapshotName}
+												        size="icon"
+												        className="h-8 w-8 bg-sidebar-primary text-sidebar-primary-foreground shrink-0">
+													<Plus className="w-4 h-4"/>
 												</Button>
 											</div>
-											<Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'list' | 'map')} className="w-full">
-												<TabsList className="grid w-full grid-cols-2 bg-sidebar-accent/50 h-8 border border-sidebar-border">
+											<Tabs value={viewMode}
+											      onValueChange={(v) => setViewMode(v as 'list' | 'map')}
+											      className="w-full">
+												<TabsList
+													className="grid w-full grid-cols-2 bg-sidebar-accent/50 h-8 border border-sidebar-border">
 													<TabsTrigger value="list" className="text-xs h-6">List</TabsTrigger>
 													<TabsTrigger value="map" className="text-xs h-6">Graph</TabsTrigger>
 												</TabsList>

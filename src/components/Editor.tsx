@@ -13,52 +13,49 @@ import { CodexOverlay } from './CodexHoverCard'
 import { useStore } from '@/lib/store'
 import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
-import {useEffect, useState} from 'react';
+import { useEffect } from 'react';
 import {
-	Bold, Italic, Strikethrough, Heading1, List,
-	Quote, Code, Loader2
+	Bold, Italic, Strikethrough, Heading1, List, Quote, Code
 } from 'lucide-react';
 import clsx from 'clsx'
-import {BubbleMenu, FloatingMenu} from '@tiptap/react/menus';
+import { BubbleMenu, FloatingMenu } from '@tiptap/react/menus';
 
-export function Editor({ ydoc, docId, projectDoc }: { ydoc: Y.Doc, docId: string, projectDoc: Y.Doc }) {
+interface EditorProps {
+	ydoc: Y.Doc
+	docId: string
+	projectDoc: Y.Doc
+	isActivePane: boolean // Are we the focused pane?
+	onFocus: () => void   // Notify parent when clicked
+	className?: string
+}
+
+export function Editor({ ydoc, docId, projectDoc, isActivePane, onFocus }: EditorProps) {
 	const { setEditor, setCollabStatus, setWordCount } = useStore()
-	const [isSynced, setIsSynced] = useState(false)
-
-	// 1. PHRASE 1: CONNECT TO DB
+	// 1. Persistence
 	useEffect(() => {
-		setIsSynced(false) // Reset on doc change
-
 		const provider = new IndexeddbPersistence(`draftless-doc-${docId}`, ydoc)
 
-		const handleSync = () => {
-			setIsSynced(true)
-			setCollabStatus('connected')
+		const updateStatus = () => {
+			if (isActivePane) setCollabStatus(provider.synced ? 'connected' : 'offline')
 		}
 
-		if (provider.synced) {
-			handleSync()
-		} else {
-			provider.on('synced', handleSync)
-		}
-
-		provider.on('connection-error', () => setCollabStatus('offline'))
+		if (provider.synced) updateStatus()
+		provider.on('synced', updateStatus)
+		provider.on('connection-error', () => {
+			if (isActivePane) setCollabStatus('offline')
+		})
 
 		return () => {
 			void provider.destroy()
 		}
-	}, [ydoc, docId, setCollabStatus])
+	}, [ydoc, docId, isActivePane, setCollabStatus])
 
-	// 2. PHRASE 2: INIT EDITOR (Only after DB is synced)
+	// 2. Tiptap Config
 	const editor = useEditor({
-		// Only run this hook if we are synced!
-		// Note: React hooks rules say this should run every render,
-		// but since we key the component in App.tsx, this effectively resets correctly.
-		// However, to be safe, we can conditionally render the EditorContent below.
 		extensions: [
 			StarterKit.configure({ undoRedo: false }),
 			Placeholder.configure({
-				placeholder: "Tell your story...",
+				placeholder: "Start writing...",
 				emptyEditorClass: 'is-editor-empty before:text-muted-foreground before:content-[attr(data-placeholder)] before:float-left before:pointer-events-none'
 			}),
 			Collaboration.configure({ document: ydoc }),
@@ -73,47 +70,26 @@ export function Editor({ ydoc, docId, projectDoc }: { ydoc: Y.Doc, docId: string
 				class: 'prose prose-lg prose-gray dark:prose-invert max-w-none focus:outline-none min-h-[60vh] text-foreground leading-relaxed selection:bg-primary/20 selection:text-primary',
 			},
 		},
-		onUpdate: ({ editor }) => {
-			setWordCount(editor.storage.characterCount.words())
+		onFocus: () => {
+			onFocus() // Tell App we are active
 		},
-	}, [ydoc, isSynced, projectDoc]) // Re-init if doc or sync state changes
+		onUpdate: ({ editor }) => {
+			// Only update global word count if we are the active pane
+			if (isActivePane) {
+				setWordCount(editor.storage.characterCount.words())
+			}
+		},
+	}, [ydoc, projectDoc])
 
-	// 3. SYNC TO STORE
+	// 3. Sync to Global Store (Only if Active Pane)
 	useEffect(() => {
-		if (editor && isSynced && !editor.isDestroyed) {
+		if (isActivePane && editor && !editor.isDestroyed) {
 			setEditor(editor)
 			setWordCount(editor.storage.characterCount.words())
 		}
-		return () => setEditor(null)
-	}, [editor, isSynced, setEditor, setWordCount])
+	}, [isActivePane, editor, setEditor, setWordCount])
 
-	// 4. REACTIVITY FIX: Listen to ProjectDoc (Codex) changes
-	useEffect(() => {
-		if (!editor || editor.isDestroyed) return
-
-		const codexMap = projectDoc.getMap('draftless-codex')
-
-		const handleCodexChange = () => {
-			// Force re-render of decorations
-			editor.view.dispatch(editor.state.tr)
-		}
-
-		codexMap.observe(handleCodexChange)
-
-		return () => {
-			codexMap.unobserve(handleCodexChange)
-		}
-	}, [editor, projectDoc])
-
-	// LOADING VIEW
-	if (!isSynced || !editor) {
-		return (
-			<div className="flex h-[50vh] items-center justify-center text-muted-foreground animate-pulse">
-				<Loader2 className="w-6 h-6 mr-2 animate-spin" />
-				Loading chapter...
-			</div>
-		)
-	}
+	if (!editor) return null
 
 	return (
 		<div className="relative w-full max-w-3xl mx-auto mb-24">
