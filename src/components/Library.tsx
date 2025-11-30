@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { library, type DocumentMeta } from "@/lib/storage"
 import { useStore } from "@/lib/store"
-import { Plus, Book, MoreVertical, Trash2, Calendar, FileText, Loader2 } from "lucide-react"
+import {Plus, Book, MoreVertical, Trash2, Calendar, FileText, Loader2, Pencil} from 'lucide-react';
 import { formatDistanceToNow } from "date-fns"
 
 import { Button } from "@/components/ui/button"
@@ -34,6 +34,8 @@ export function Library() {
 	const [newTitle, setNewTitle] = useState("")
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
 	const setCurrentDoc = useStore((state) => state.setCurrentDoc)
+	const [renameTitle, setRenameTitle] = useState("")
+	const [docToRename, setDocToRename] = useState<DocumentMeta | null>(null)
 
 	const loadLibrary = async () => {
 		setLoading(true)
@@ -53,6 +55,20 @@ export function Library() {
 		setNewTitle("")
 		setIsDialogOpen(false)
 		setCurrentDoc(newDoc) // Open immediately
+	}
+
+	const handleRename = async () => {
+		if (!docToRename || !renameTitle.trim()) return
+		await library.update(docToRename.id, { title: renameTitle })
+		await loadLibrary()
+		setDocToRename(null)
+		setRenameTitle("")
+	}
+
+	const openRenameDialog = (e: React.MouseEvent, doc: DocumentMeta) => {
+		e.stopPropagation()
+		setDocToRename(doc)
+		setRenameTitle(doc.title)
 	}
 
 	const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -125,6 +141,9 @@ export function Library() {
 												</Button>
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align="end" className="bg-popover border-border">
+												<DropdownMenuItem onClick={(e) => openRenameDialog(e, doc)}>
+													<Pencil className="w-4 h-4 mr-2" /> Rename
+												</DropdownMenuItem>
 												<DropdownMenuItem
 													className="text-destructive focus:text-destructive focus:bg-destructive/10"
 													onClick={(e) => handleDelete(e, doc.id)}
@@ -157,6 +176,25 @@ export function Library() {
 						)}
 					</div>
 				)}
+
+				{/* RENAME DIALOG */}
+				<Dialog open={!!docToRename} onOpenChange={(open) => !open && setDocToRename(null)}>
+					<DialogContent className="bg-card border-border sm:max-w-[425px]">
+						<DialogHeader><DialogTitle>Rename Story</DialogTitle></DialogHeader>
+						<div className="py-4">
+							<Input
+								value={renameTitle}
+								onChange={(e) => setRenameTitle(e.target.value)}
+								onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+								autoFocus
+								className="bg-background"
+							/>
+						</div>
+						<DialogFooter>
+							<Button onClick={handleRename} disabled={!renameTitle.trim()}>Save Changes</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 			</div>
 		</div>
 	)

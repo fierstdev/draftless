@@ -98,7 +98,7 @@ export function Weaver({ isOpen, onClose, currentText, checkpointText, onConfirm
                       </span>
 										<Badge variant="secondary" className="text-[10px] h-5">Locked</Badge>
 									</div>
-									<ScrollArea className="flex-1">
+									<ScrollArea className="flex-1 overflow-y-auto">
 										<div className="p-6 text-sm text-foreground/80 font-serif leading-relaxed whitespace-pre-wrap selection:bg-muted selection:text-foreground">
 											{currentText}
 										</div>
@@ -112,7 +112,7 @@ export function Weaver({ isOpen, onClose, currentText, checkpointText, onConfirm
                       </span>
 										<Badge variant="outline" className="text-[10px] h-5 bg-background text-primary border-primary/30 font-medium shadow-sm">Source</Badge>
 									</div>
-									<ScrollArea className="flex-1">
+									<ScrollArea className="flex-1 overflow-y-auto">
 										<div className="p-6 text-sm text-foreground/80 font-serif leading-relaxed whitespace-pre-wrap selection:bg-primary/20">
 											{checkpointText}
 										</div>

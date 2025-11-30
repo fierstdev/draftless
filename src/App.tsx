@@ -1,7 +1,7 @@
 import React, {useEffect, useMemo} from 'react';
 import { Editor } from "./components/Editor"
 import { AppSidebar } from "./components/Sidebar"
-import { ExportDialog } from "./components/ExportDialog" // Ensure this is imported
+import { CompileDialog } from "./components/CompileDialog"
 import { ThemeProvider } from "@/lib/theme-provider"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -27,7 +27,6 @@ function App() {
     const activePane = useStore((state) => state.activePane)
     const setActivePane = useStore((state) => state.setActivePane)
     const openFile = useStore((state) => state.openFile)
-    const editor = useStore((state) => state.editor)
     const wordCount = useStore((state) => state.wordCount)
     const collabStatus = useStore((state) => state.collabStatus)
 
@@ -136,7 +135,7 @@ function App() {
                                     className="hidden sm:flex items-center px-3 py-1.5 bg-muted/50 rounded-full border border-border/50 text-xs font-medium text-muted-foreground">
                                     {wordCount} words
                                 </div>
-                                <ExportDialog editor={editor}/>
+                                {projectDoc && <CompileDialog projectDoc={projectDoc} />}
                             </div>
                         </header>
 

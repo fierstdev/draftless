@@ -8,6 +8,7 @@ import Typography from '@tiptap/extension-typography'
 import CharacterCount from '@tiptap/extension-character-count'
 
 import { EntityHighlighter } from './editor/EntityExtension'
+import { SuggestionAdd, SuggestionDel, CommentMark } from './editor/ReviewExtension'
 import { CodexOverlay } from './CodexHoverCard'
 
 import { useStore } from '@/lib/store'
@@ -64,6 +65,9 @@ export function Editor({ ydoc, docId, projectDoc, isActivePane, onFocus }: Edito
 			Typography,
 			CharacterCount,
 			EntityHighlighter(projectDoc),
+			SuggestionAdd,
+			SuggestionDel,
+			CommentMark,
 		],
 		editorProps: {
 			attributes: {
