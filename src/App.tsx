@@ -31,9 +31,9 @@ function App() {
     const collabStatus = useStore((state) => state.collabStatus)
 
     // 1. MEMOIZED DOCS (Solves "setState in effect" error)
-    // Create the docs via useMemo so they are derived synchronously without triggering re-renders.
     const projectDoc = useMemo(() => {
         return currentDoc ? new Y.Doc() : null
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentDoc?.id])
 
     const primaryDoc = useMemo(() => {
@@ -44,7 +44,7 @@ function App() {
         return secondaryFileId ? new Y.Doc() : null
     }, [secondaryFileId])
 
-    // Cleanup effects for the docs
+    // Cleanup effects
     useEffect(() => { return () => projectDoc?.destroy() }, [projectDoc])
     useEffect(() => { return () => primaryDoc?.destroy() }, [primaryDoc])
     useEffect(() => { return () => secondaryDoc?.destroy() }, [secondaryDoc])
