@@ -27,8 +27,6 @@ export function processContent(json: any, mode: ExportMode): string {
 	const cleanContent = JSON.parse(JSON.stringify(json))
 
 	// 1. SANITIZE & FILTER TRAVERSAL
-	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-	// @ts-expect-error
 	const traverse = (node: any) => {
 		// Handle Arrays (e.g. the root content list)
 		if (Array.isArray(node)) {
