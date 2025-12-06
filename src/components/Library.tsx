@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { library, type DocumentMeta } from "@/lib/storage"
 import { useStore } from "@/lib/store"
-import { Plus, Book, MoreVertical, Trash2, Calendar, FileText, Loader2, Pencil, Sparkles, GitBranch, BrainCircuit } from "lucide-react"
+import { Plus, Book, MoreVertical, Trash2, Calendar, Loader2, Pencil, Sparkles, GitBranch, BrainCircuit } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import * as Y from "yjs"
 import { IndexeddbPersistence } from "y-indexeddb"
@@ -162,9 +162,12 @@ export function Library() {
 				{/* TOP BAR */}
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-3">
-						<div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-							<FileText className="text-primary-foreground h-6 w-6" />
-						</div>
+
+							<img
+								src="/mask-icon.png"
+								alt="Draftless logo"
+								className="size-14 rounded-xl" />
+
 						<div>
 							<h1 className="text-2xl font-bold tracking-tight text-foreground">Draftless</h1>
 							<p className="text-muted-foreground text-sm">Local-First Writing Studio</p>
