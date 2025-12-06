@@ -120,7 +120,7 @@ export function AppSidebar({ projectDoc, activeFileId, ...props }: { projectDoc:
 									</div>
 									{/* FOOTER CREDIT */}
 									<div className="text-[12px] gap-1 flex text-muted-foreground/40">
-										<span>Draftless by  </span>
+										<span>Draftless – by  </span>
 										<a href="https://fierst.dev" target="_blank"
 										   className="text-[12px] text-muted-foreground/40 hover:text-primary transition-colors">
 											  Fierst
