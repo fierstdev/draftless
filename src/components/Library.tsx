@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react"
 import { library, type DocumentMeta } from "@/lib/storage"
 import { useStore } from "@/lib/store"
-import { Plus, Book, MoreVertical, Trash2, Calendar, Loader2, Pencil, Sparkles, GitBranch, BrainCircuit } from "lucide-react"
+import {
+	Plus,
+	Book,
+	MoreVertical,
+	Trash2,
+	Calendar,
+	Loader2,
+	Pencil,
+	Sparkles,
+	GitBranch,
+	BrainCircuit,
+	ExternalLink
+} from 'lucide-react';
 import { formatDistanceToNow } from "date-fns"
 import * as Y from "yjs"
 import { IndexeddbPersistence } from "y-indexeddb"
@@ -156,8 +168,8 @@ export function Library() {
 	}
 
 	return (
-		<div className="min-h-screen bg-background p-8 animate-in fade-in duration-500">
-			<div className="max-w-6xl mx-auto space-y-12">
+		<div className="min-h-screen bg-background p-8 animate-in fade-in duration-500 flex flex-col">
+			<div className="max-w-6xl mx-auto space-y-12 w-full flex-1 flex flex-col">
 
 				{/* TOP BAR */}
 				<div className="flex items-center justify-between">
@@ -212,127 +224,162 @@ export function Library() {
 
 				{/* MAIN CONTENT */}
 				{loading ? (
-					<div className="flex justify-center py-40">
+					<div className="flex-1 flex items-center justify-center">
 						<Loader2 className="w-10 h-10 animate-spin text-primary/50" />
 					</div>
 				) : docs.length === 0 ? (
 					/* EMPTY STATE ONBOARDING */
-					<div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center py-12">
-						<div className="space-y-6">
-							<h2 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl mb-4">
-								Write without fear.<br/>
-								<span className="text-primary">Edit with intelligence.</span>
-							</h2>
-							<p className="text-lg text-muted-foreground leading-relaxed max-w-md">
-								DraftLess treats your prose like code. Branch your story to explore new ideas, merge conflicting drafts with AI, and keep your world bible synced automatically.
-							</p>
-							<div className="flex gap-4 pt-4">
-								<Button size="lg" onClick={() => setIsDialogOpen(true)} className="text-base px-8 h-12 shadow-xl shadow-primary/20">
-									Start Writing
-								</Button>
-								<Button size="lg" variant="outline" onClick={createDemoProject} disabled={creatingDemo} className="text-base px-8 h-12 border-primary/20 hover:bg-primary/5">
-									{creatingDemo ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2 text-purple-600" />}
-									Try the Demo
-								</Button>
+					<div className="flex-1 flex items-center">
+						<div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center py-12">
+							<div className="space-y-6">
+								<h2 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl mb-4">
+									Write without fear.<br/>
+									<span className="text-primary">Edit with intelligence.</span>
+								</h2>
+								<p className="text-lg text-muted-foreground leading-relaxed max-w-md">
+									DraftLess treats your prose like code. Branch your story to explore new ideas, merge
+									conflicting drafts with AI, and keep your world bible synced automatically.
+								</p>
+								<div className="flex gap-4 pt-4">
+									<Button size="lg" onClick={() => setIsDialogOpen(true)}
+									        className="text-base px-8 h-12 shadow-xl shadow-primary/20">
+										Start Writing
+									</Button>
+									<Button size="lg" variant="outline" onClick={createDemoProject}
+									        disabled={creatingDemo}
+									        className="text-base px-8 h-12 border-primary/20 hover:bg-primary/5">
+										{creatingDemo ? <Loader2 className="w-5 h-5 animate-spin mr-2"/> :
+											<Sparkles className="w-5 h-5 mr-2 text-purple-600"/>}
+										Try the Demo
+									</Button>
+								</div>
+							</div>
+
+							{/* Feature Grid */}
+							<div className="grid gap-4">
+								<FeatureCard
+									icon={GitBranch}
+									title="Time Machine"
+									desc="Branch your story like code. Create 'What If' scenarios and merge them back later."
+									color="text-blue-500"
+								/>
+								<FeatureCard
+									icon={BrainCircuit}
+									title="Semantic Weaver"
+									desc="Use AI to resolve plot holes when merging two conflicting drafts of a scene."
+									color="text-purple-500"
+								/>
+								<FeatureCard
+									icon={Book}
+									title="Smart Codex"
+									desc="Your world bible lives in the text. Hover over characters to see their details instantly."
+									color="text-emerald-500"
+								/>
 							</div>
 						</div>
-
-						{/* Feature Grid */}
-						<div className="grid gap-4">
-							<FeatureCard
-								icon={GitBranch}
-								title="Time Machine"
-								desc="Branch your story like code. Create 'What If' scenarios and merge them back later."
-								color="text-blue-500"
-							/>
-							<FeatureCard
-								icon={BrainCircuit}
-								title="Semantic Weaver"
-								desc="Use AI to resolve plot holes when merging two conflicting drafts of a scene."
-								color="text-purple-500"
-							/>
-							<FeatureCard
-								icon={Book}
-								title="Smart Codex"
-								desc="Your world bible lives in the text. Hover over characters to see their details instantly."
-								color="text-emerald-500"
-							/>
 						</div>
-					</div>
-				) : (
-					/* LIBRARY GRID */
-					<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-						{docs.map((doc) => (
-							<Card
-								key={doc.id}
-								className="group cursor-pointer bg-card border-border hover:border-primary/50 transition-all hover:shadow-lg hover:-translate-y-1"
-								onClick={() => setCurrentDoc(doc)}
-							>
-								<CardHeader className="pb-3">
-									<div className="flex justify-between items-start">
-										<div className="p-2.5 bg-primary/10 rounded-xl text-primary mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-											<Book className="w-6 h-6" />
+						) : (
+						/* LIBRARY GRID */
+						<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+							{docs.map((doc) => (
+								<Card
+									key={doc.id}
+									className="group cursor-pointer bg-card border-border hover:border-primary/50 transition-all hover:shadow-lg hover:-translate-y-1"
+									onClick={() => setCurrentDoc(doc)}
+								>
+									<CardHeader className="pb-3">
+										<div className="flex justify-between items-start">
+											<div
+												className="p-2.5 bg-primary/10 rounded-xl text-primary mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+												<Book className="w-6 h-6"/>
+											</div>
+											<DropdownMenu>
+												<DropdownMenuTrigger asChild>
+													<Button variant="ghost" size="icon"
+													        className="h-8 w-8 -mr-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground">
+														<MoreVertical className="w-4 h-4"/>
+													</Button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align="end" className="bg-popover border-border">
+													<DropdownMenuItem onClick={(e) => {
+														e.stopPropagation();
+														setDocToRename(doc);
+														setRenameTitle(doc.title);
+													}}>
+														<Pencil className="w-4 h-4 mr-2"/> Rename
+													</DropdownMenuItem>
+													<DropdownMenuItem
+														className="text-destructive focus:text-destructive focus:bg-destructive/10"
+														onClick={(e) => handleDelete(e, doc.id)}
+													>
+														<Trash2 className="w-4 h-4 mr-2"/> Delete
+													</DropdownMenuItem>
+												</DropdownMenuContent>
+											</DropdownMenu>
 										</div>
-										<DropdownMenu>
-											<DropdownMenuTrigger asChild>
-												<Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground">
-													<MoreVertical className="w-4 h-4" />
-												</Button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end" className="bg-popover border-border">
-												<DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDocToRename(doc); setRenameTitle(doc.title); }}>
-													<Pencil className="w-4 h-4 mr-2" /> Rename
-												</DropdownMenuItem>
-												<DropdownMenuItem
-													className="text-destructive focus:text-destructive focus:bg-destructive/10"
-													onClick={(e) => handleDelete(e, doc.id)}
-												>
-													<Trash2 className="w-4 h-4 mr-2" /> Delete
-												</DropdownMenuItem>
-											</DropdownMenuContent>
-										</DropdownMenu>
-									</div>
-									<CardTitle className="leading-tight text-lg">{doc.title}</CardTitle>
-									<CardDescription className="line-clamp-1 text-xs font-medium pt-1">
-										{doc.wordCount || 0} words
-									</CardDescription>
-								</CardHeader>
-								<CardFooter className="text-[10px] text-muted-foreground border-t border-border/50 bg-muted/20 py-3 flex items-center gap-3">
+										<CardTitle className="leading-tight text-lg">{doc.title}</CardTitle>
+										<CardDescription className="line-clamp-1 text-xs font-medium pt-1">
+											{doc.wordCount || 0} words
+										</CardDescription>
+									</CardHeader>
+									<CardFooter
+										className="text-[10px] text-muted-foreground border-t border-border/50 bg-muted/20 py-3 flex items-center gap-3">
                         <span className="flex items-center gap-1.5">
-                            <Calendar className="w-3 h-3 opacity-70" />
-	                        {formatDistanceToNow(doc.updatedAt, { addSuffix: true })}
+                            <Calendar className="w-3 h-3 opacity-70"/>
+	                        {formatDistanceToNow(doc.updatedAt, {addSuffix: true})}
                         </span>
-								</CardFooter>
-							</Card>
-						))}
-					</div>
-				)}
-
-				{/* RENAME DIALOG */}
-				<Dialog open={!!docToRename} onOpenChange={(open) => !open && setDocToRename(null)}>
-					<DialogContent className="bg-card border-border sm:max-w-[425px]">
-						<DialogHeader><DialogTitle>Rename Story</DialogTitle></DialogHeader>
-						<div className="py-4">
-							<Input
-								value={renameTitle}
-								onChange={(e) => setRenameTitle(e.target.value)}
-								onKeyDown={(e) => e.key === 'Enter' && handleRename()}
-								autoFocus
-								className="bg-background"
-							/>
+									</CardFooter>
+								</Card>
+							))}
 						</div>
-						<DialogFooter>
-							<Button onClick={handleRename} disabled={!renameTitle.trim()}>Save Changes</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
+						)}
 
-			</div>
-		</div>
-	)
-}
+						{/* RENAME DIALOG */}
+						<Dialog open={!!docToRename} onOpenChange={(open) => !open && setDocToRename(null)}>
+							<DialogContent className="bg-card border-border sm:max-w-[425px]">
+								<DialogHeader><DialogTitle>Rename Story</DialogTitle></DialogHeader>
+								<div className="py-4">
+									<Input
+										value={renameTitle}
+										onChange={(e) => setRenameTitle(e.target.value)}
+										onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+										autoFocus
+										className="bg-background"
+									/>
+								</div>
+								<DialogFooter>
+									<Button onClick={handleRename} disabled={!renameTitle.trim()}>Save Changes</Button>
+								</DialogFooter>
+							</DialogContent>
+						</Dialog>
 
-function FeatureCard({ icon: Icon, title, desc, color }) {
+						{/* FOOTER */}
+						<footer className="w-full py-3 border-t border-border/40 text-center shrink-0">
+							<div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+								<span>Built by</span>
+
+								<a
+									href="https://fierst.dev"
+									target="_blank"
+									rel="noreferrer"
+									className="font-semibold text-foreground hover:text-primary hover:underline transition-all flex items-center gap-1"
+								>
+									<img
+										src="/fierstdev-logo.svg"
+										alt="FierstDev logo"
+										className="size-5 rounded-full"
+									/>
+									Fierst <ExternalLink className="w-3 h-3 opacity-50"/>
+								</a>
+							</div>
+						</footer>
+
+					</div>
+					</div>
+					)
+				}
+
+				function FeatureCard({icon: Icon, title, desc, color}) {
 	return (
 		<div className="flex gap-4 p-4 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors">
 			<div className={`p-3 rounded-lg bg-background h-fit border border-border/50 shadow-sm ${color}`}>

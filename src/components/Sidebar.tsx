@@ -112,8 +112,27 @@ export function AppSidebar({ projectDoc, activeFileId, ...props }: { projectDoc:
 				<SidebarFooter className="border-t border-sidebar-border shrink-0">
 					<SidebarMenu>
 						<SidebarMenuItem className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-2 py-2`}>
-							{!isCollapsed && <div className="flex items-center gap-2 text-xs text-muted-foreground"><div className={`w-2 h-2 rounded-full ${editor ? 'bg-emerald-500' : 'bg-red-500'}`} />{editor ? 'Online' : 'Offline'}</div>}
-							<div className="flex items-center gap-2">{!isCollapsed && <span className="text-[10px] font-mono text-muted-foreground/50">v1.0.0</span>}<SettingsDialog /></div>
+							{!isCollapsed && (
+								<div className="flex flex-col gap-0.5">
+									<div className="flex items-center gap-2 text-xs text-muted-foreground">
+										<div className={`w-2 h-2 rounded-full ${editor ? 'bg-emerald-500' : 'bg-red-500'}`} />
+										{editor ? 'Online' : 'Offline'}
+									</div>
+									{/* FOOTER CREDIT */}
+									<div className="text-[12px] gap-1 flex text-muted-foreground/40">
+										<span>Draftless by  </span>
+										<a href="https://fierst.dev" target="_blank"
+										   className="text-[12px] text-muted-foreground/40 hover:text-primary transition-colors">
+											  Fierst
+										</a>
+									</div>
+
+								</div>
+							)}
+							<div className="flex items-center gap-2">
+								{!isCollapsed && <span className="text-[10px] font-mono text-muted-foreground/50">v1.0.0</span>}
+								<SettingsDialog />
+							</div>
 						</SidebarMenuItem>
 					</SidebarMenu>
 				</SidebarFooter>
