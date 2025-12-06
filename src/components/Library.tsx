@@ -166,7 +166,7 @@ export function Library() {
 							<FileText className="text-primary-foreground h-6 w-6" />
 						</div>
 						<div>
-							<h1 className="text-2xl font-bold tracking-tight text-foreground">DraftLess</h1>
+							<h1 className="text-2xl font-bold tracking-tight text-foreground">Draftless</h1>
 							<p className="text-muted-foreground text-sm">Local-First Writing Studio</p>
 						</div>
 					</div>
