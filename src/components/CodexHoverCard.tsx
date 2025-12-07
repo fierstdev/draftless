@@ -17,7 +17,6 @@ const TypeIcon = {
 	lore: Book
 }
 
-// FIX 1: Accept projectDoc prop
 export function CodexOverlay({ editor, projectDoc }: { editor: Editor | null, projectDoc: Y.Doc }) {
 	const [entity, setEntity] = useState<CodexEntity | null>(null)
 	const [position, setPosition] = useState<{ x: number, y: number } | null>(null)
@@ -37,8 +36,6 @@ export function CodexOverlay({ editor, projectDoc }: { editor: Editor | null, pr
 			return
 		}
 
-		// FIX 2: Use the Project Doc to find entities (The "Library" Database)
-		// instead of the Chapter Doc (The "Editor" Database)
 		const codex = new CodexManager(projectDoc)
 
 		const handleMouseOver = (e: MouseEvent) => {
