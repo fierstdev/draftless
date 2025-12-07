@@ -25,8 +25,8 @@ interface EditorProps {
 	ydoc: Y.Doc
 	docId: string
 	projectDoc: Y.Doc
-	isActivePane: boolean // Are we the focused pane?
-	onFocus: () => void   // Notify parent when clicked
+	isActivePane: boolean
+	onFocus: () => void  
 	className?: string
 }
 
@@ -78,7 +78,7 @@ export function Editor({ ydoc, docId, projectDoc, isActivePane, onFocus }: Edito
 			onFocus() // Tell App we are active
 		},
 		onUpdate: ({ editor }) => {
-			// Only update global word count if we are the active pane
+			// Only update global word count if active pane
 			if (isActivePane) {
 				setWordCount(editor.storage.characterCount.words())
 			}
