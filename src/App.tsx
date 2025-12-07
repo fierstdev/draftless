@@ -13,7 +13,7 @@ import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
 
 function App() {
-    // ... (Global Store & Memoized Docs code remains identical to previous robust version) ...
+   // GLOBAL STORE
     const currentDoc = useStore((state) => state.currentDoc)
     const primaryFileId = useStore((state) => state.primaryFileId)
     const secondaryFileId = useStore((state) => state.secondaryFileId)
