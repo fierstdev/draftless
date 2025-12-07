@@ -55,9 +55,6 @@ export function AppSidebar({ projectDoc, activeFileId, ...props }: { projectDoc:
 			if (snap) {
 				snap.description = renameTarget.name
 				await db.put('snapshots', snap)
-				// HistoryView will need to refresh, but for now we can just force it via key or context
-				// Ideally, use a shared event bus or lift the refresh signal up.
-				// For MVP, user might need to click tab again to see update immediately.
 			}
 		}
 		setRenameTarget(null)
