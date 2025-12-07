@@ -58,9 +58,6 @@ export const library = {
 		const db = await initDB()
 		await db.delete(STORE_NAME, id)
 
-		// Note: In a real production app, you would also want to delete
-		// the specific IndexedDB databases for content and snapshots here.
-		// For this MVP, leaving them is safe (they are just orphaned data).
 		indexedDB.deleteDatabase(`draftless-doc-${id}`)
 		indexedDB.deleteDatabase(`draftless-snapshots-${id}`)
 	}
