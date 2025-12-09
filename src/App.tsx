@@ -11,6 +11,7 @@ import { Library } from "./components/Library"
 import { ProjectManager } from '@/lib/project'
 import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
+import {Analytics} from '@vercel/analytics/react';
 
 function App() {
     // ... (Global Store & Memoized Docs code remains identical to previous robust version) ...
@@ -120,6 +121,7 @@ function App() {
                     </SidebarInset>
                 </SidebarProvider>
             )}
+            <Analytics />
         </ThemeProvider>
     )
 }

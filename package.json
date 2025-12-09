@@ -38,6 +38,7 @@
     "@tiptap/starter-kit": "^3.11.0",
     "@types/dagre": "^0.7.53",
     "@types/file-saver": "^2.0.7",
+    "@vercel/analytics": "^1.6.1",
     "ai": "^5.0.107",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
