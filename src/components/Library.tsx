@@ -237,7 +237,7 @@ export function Library() {
 									<span className="text-primary">Edit with intelligence.</span>
 								</h2>
 								<p className="text-lg text-muted-foreground leading-relaxed max-w-md">
-									DraftLess treats your prose like code. Branch your story to explore new ideas, merge
+									Draftless treats your prose like code. Branch your story to explore new ideas, merge
 									conflicting drafts with AI, and keep your world bible synced automatically.
 								</p>
 								<div className="flex gap-4 pt-4">

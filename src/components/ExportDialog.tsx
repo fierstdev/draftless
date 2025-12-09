@@ -41,10 +41,8 @@ export function ExportDialog({ editor }: ExportDialogProps) {
 
 	// Tiptap to Markdown (Basic)
 	const getMarkdown = () => {
-		// For production, use 'tiptap-markdown' extension.
-		// This is a simplified fallback for the MVP:
 		let text = editor.getText()
-		return text // In a real app, serialize this properly!
+		return text
 	}
 
 	const getHTML = () => editor.getHTML()

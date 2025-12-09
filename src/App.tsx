@@ -14,7 +14,7 @@ import { IndexeddbPersistence } from 'y-indexeddb'
 import {Analytics} from '@vercel/analytics/react';
 
 function App() {
-    // ... (Global Store & Memoized Docs code remains identical to previous robust version) ...
+   // GLOBAL STORE
     const currentDoc = useStore((state) => state.currentDoc)
     const primaryFileId = useStore((state) => state.primaryFileId)
     const secondaryFileId = useStore((state) => state.secondaryFileId)

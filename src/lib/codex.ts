@@ -7,7 +7,7 @@ export interface CodexEntity {
 	name: string
 	type: EntityType
 	description: string
-	color: string // For the highlight underline
+	color: string 
 }
 
 export class CodexManager {

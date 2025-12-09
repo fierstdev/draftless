@@ -22,7 +22,7 @@ interface AppState {
 	wordCount: number
 	setWordCount: (count: number) => void
 
-	// Split View State (Future proofing)
+	// Split View State
 	isSplitView: boolean
 	toggleSplitView: () => void
 	activePane: 'primary' | 'secondary'
