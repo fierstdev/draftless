@@ -127,7 +127,7 @@ export function AppSidebar({ projectDoc, activeFileId, ...props }: { projectDoc:
 								</div>
 							)}
 							<div className="flex items-center gap-2">
-								{!isCollapsed && <span className="text-[10px] font-mono text-muted-foreground/50">v1.0.0</span>}
+								{!isCollapsed && <span className="text-[10px] font-mono text-muted-foreground/50">v0.9.0-beta</span>}
 								<SettingsDialog />
 							</div>
 						</SidebarMenuItem>

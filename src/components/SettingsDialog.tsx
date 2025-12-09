@@ -145,7 +145,7 @@ export function SettingsDialog() {
 						<span className="text-xs font-medium text-foreground">DraftLess System</span>
 						<div className="flex items-center gap-1.5 text-muted-foreground">
 							<MonitorSmartphone className="w-3 h-3" />
-							<span className="text-[10px] font-mono">v1.0.0</span>
+							<span className="text-[10px] font-mono">v0.9.0-beta</span>
 						</div>
 					</div>
 					<PWAInstall />
