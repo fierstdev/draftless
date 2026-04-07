@@ -40,6 +40,7 @@ function getInitialKeys() {
 export function SettingsDialog() {
 	const { setTheme, theme } = useTheme()
 	const [isOpen, setIsOpen] = useState(false)
+	const [activeTab, setActiveTab] = useState<'appearance' | 'intelligence'>('appearance')
 
 	// AI Settings
 	const [provider, setProvider] = useState<AIProvider>(getInitialProvider)
@@ -55,8 +56,15 @@ export function SettingsDialog() {
 		window.setTimeout(() => setSaved(false), 2000)
 	}
 
+	const handleOpenChange = (nextOpen: boolean) => {
+		setIsOpen(nextOpen)
+		if (nextOpen) {
+			setActiveTab('appearance')
+		}
+	}
+
 	return (
-		<Dialog open={isOpen} onOpenChange={setIsOpen}>
+		<Dialog open={isOpen} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
 				<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
 					<Settings className="h-4 w-4" />
@@ -75,7 +83,7 @@ export function SettingsDialog() {
 				</DialogHeader>
 
 				<div className="p-6 flex-1 overflow-y-auto max-h-[60vh]">
-					<Tabs defaultValue="intelligence" className="w-full">
+					<Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'appearance' | 'intelligence')} className="w-full">
 						<TabsList className="grid w-full grid-cols-2 mb-6 bg-muted text-muted-foreground">
 							<TabsTrigger value="appearance" className="data-[state=active]:bg-card data-[state=active]:text-foreground">Appearance</TabsTrigger>
 							<TabsTrigger value="intelligence" className="data-[state=active]:bg-card data-[state=active]:text-foreground">Writing Assistant</TabsTrigger>
