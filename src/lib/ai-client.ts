@@ -2,9 +2,23 @@ import { generateText } from "ai"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { createOpenAI } from "@ai-sdk/openai"
 import { createAnthropic } from "@ai-sdk/anthropic"
-import type { LanguageModelV2CallOptions, LanguageModelV2Content, LanguageModelV2FinishReason, LanguageModelV2Usage, SharedV2ProviderMetadata, LanguageModelV2ResponseMetadata, SharedV2Headers, LanguageModelV2CallWarning, LanguageModelV2StreamPart } from "@ai-sdk/provider"
 
 export type WeaveStrategy = 'mix' | 'action_b_tone_a' | 'append'
+type ProviderId = 'google' | 'openai' | 'anthropic'
+
+export class WeaveError extends Error {
+	code: 'missing_api_key' | 'provider_unavailable' | 'generation_failed' | 'invalid_provider'
+
+	constructor(
+		code: WeaveError['code'],
+		message: string,
+		options?: { cause?: unknown }
+	) {
+		super(message, options)
+		this.name = 'WeaveError'
+		this.code = code
+	}
+}
 
 const getSystemInstruction = (strategy: WeaveStrategy, textA: string, textB: string) => {
 	switch (strategy) {
@@ -96,38 +110,101 @@ const getSystemInstruction = (strategy: WeaveStrategy, textA: string, textB: str
 	}
 };
 
-export const weaveText = async (currentText: string, checkpointText: string, strategy: WeaveStrategy) => {
-	const providerId = localStorage.getItem('ai_provider') || 'google';
-	let model: { specificationVersion: "v2"; provider: string; modelId: string; supportedUrls: Record<string, RegExp[]> | PromiseLike<Record<string, RegExp[]>>; doGenerate: (options: LanguageModelV2CallOptions) => PromiseLike<{ content: Array<LanguageModelV2Content>; finishReason: LanguageModelV2FinishReason; usage: LanguageModelV2Usage; providerMetadata?: SharedV2ProviderMetadata; request?: { body?: unknown }; response?: LanguageModelV2ResponseMetadata & { headers?: SharedV2Headers; body?: unknown }; warnings: Array<LanguageModelV2CallWarning> }>; doStream: (options: LanguageModelV2CallOptions) => PromiseLike<{ stream: ReadableStream<LanguageModelV2StreamPart>; request?: { body?: unknown }; response?: { headers?: SharedV2Headers } }> }
+function getProviderLabel(providerId: ProviderId): string {
+	switch (providerId) {
+		case 'google':
+			return 'Google Gemini'
+		case 'openai':
+			return 'OpenAI'
+		case 'anthropic':
+			return 'Anthropic'
+	}
+}
 
+function getMissingKeyError(providerId: ProviderId): WeaveError {
+	return new WeaveError(
+		'missing_api_key',
+		`Draftless needs your ${getProviderLabel(providerId)} key before it can help with this. Add it in Preferences > Writing Assistant.`,
+	)
+}
+
+function resolveModel(providerId: ProviderId) {
 	if (providerId === 'google') {
 		const apiKey = localStorage.getItem("google_api_key") || import.meta.env.VITE_GOOGLE_API_KEY
-		if (!apiKey) throw new Error("Missing Google API Key")
-		const google = createGoogleGenerativeAI({ apiKey })
-		model = google("gemini-2.5-flash")
-	}
-	else if (providerId === 'openai') {
-		const apiKey = localStorage.getItem("openai_api_key")
-		if (!apiKey) throw new Error("Missing OpenAI API Key")
-		const openai = createOpenAI({ apiKey })
-		model = openai("gpt-4o")
-	}
-	else if (providerId === 'anthropic') {
-		const apiKey = localStorage.getItem("anthropic_api_key")
-		if (!apiKey) throw new Error("Missing Anthropic API Key")
-		const anthropic = createAnthropic({ apiKey })
-		model = anthropic("claude-3-5-sonnet-20240620")
-	}
-	else {
-		throw new Error("Invalid Provider Selected")
-	}
-
-	try {
-		// Anthropic browser check
-		if (providerId === 'anthropic') {
-			console.warn("Anthropic requests usually require a proxy due to CORS.")
+		if (!apiKey) {
+			throw getMissingKeyError(providerId)
 		}
 
+		const google = createGoogleGenerativeAI({ apiKey })
+		return {
+			providerId,
+			model: google("gemini-2.5-flash"),
+		}
+	}
+
+	if (providerId === 'openai') {
+		const apiKey = localStorage.getItem("openai_api_key")
+		if (!apiKey) {
+			throw getMissingKeyError(providerId)
+		}
+
+		const openai = createOpenAI({ apiKey })
+		return {
+			providerId,
+			model: openai("gpt-4o"),
+		}
+	}
+
+	if (providerId === 'anthropic') {
+		const apiKey = localStorage.getItem("anthropic_api_key")
+		if (!apiKey) {
+			throw getMissingKeyError(providerId)
+		}
+
+		const anthropic = createAnthropic({ apiKey })
+		return {
+			providerId,
+			model: anthropic("claude-3-5-sonnet-20240620"),
+		}
+	}
+
+	throw new WeaveError(
+		'invalid_provider',
+		"Draftless couldn't open the selected writing assistant. Choose another assistant in Preferences.",
+	)
+}
+
+function normalizeProviderError(providerId: ProviderId, error: unknown): WeaveError {
+	if (error instanceof WeaveError) {
+		return error
+	}
+
+	const message = error instanceof Error ? error.message : 'Unknown AI generation error.'
+	const isBrowserLimitedProvider = providerId === 'openai' || providerId === 'anthropic'
+	const isNetworkStyleFailure =
+		error instanceof TypeError ||
+		/failed to fetch|networkerror|cors|access-control/i.test(message)
+
+	if (isBrowserLimitedProvider && isNetworkStyleFailure) {
+		return new WeaveError(
+			'provider_unavailable',
+			`${getProviderLabel(providerId)} usually needs a connected backend before it can help from the browser. For now, try Google Gemini or connect a proxy for ${getProviderLabel(providerId)}.`,
+			{ cause: error },
+		)
+	}
+
+	return new WeaveError(
+		'generation_failed',
+		`${getProviderLabel(providerId)} couldn't draft a new pass right now. Please try again.`,
+		{ cause: error },
+	)
+}
+
+export const weaveText = async (currentText: string, checkpointText: string, strategy: WeaveStrategy) => {
+	const providerId = (localStorage.getItem('ai_provider') || 'google') as ProviderId
+	const { model } = resolveModel(providerId)
+
+	try {
 		const { text } = await generateText({
 			model,
 			prompt: getSystemInstruction(strategy, currentText, checkpointText),
@@ -139,6 +216,6 @@ export const weaveText = async (currentText: string, checkpointText: string, str
 		return text.trim() // Clean up any accidental whitespace
 	} catch (error) {
 		console.error("AI SDK Error:", error)
-		throw error
+		throw normalizeProviderError(providerId, error)
 	}
 }

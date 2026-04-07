@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Download, Check, Share, PlusSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -10,30 +10,53 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog"
 
+interface BeforeInstallPromptEvent extends Event {
+	prompt: () => Promise<void>
+	userChoice: Promise<{
+		outcome: 'accepted' | 'dismissed'
+		platform: string
+	}>
+}
+
+function isAppleInstallFlow(): boolean {
+	if (typeof window === 'undefined') {
+		return false
+	}
+
+	const userAgent = window.navigator.userAgent.toLowerCase()
+	return /iphone|ipad|ipod|macintosh/.test(userAgent) && !/chrome|crios/i.test(userAgent)
+}
+
+function isStandaloneDisplayMode(): boolean {
+	if (typeof window === 'undefined') {
+		return false
+	}
+
+	return window.matchMedia('(display-mode: standalone)').matches
+}
+
 export function PWAInstall() {
-	const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
-	const [isInstalled, setIsInstalled] = useState(false)
-	const [isIOS, setIsIOS] = useState(false)
+	const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+	const [isInstalled, setIsInstalled] = useState(isStandaloneDisplayMode)
+	const isIOS = useMemo(() => isAppleInstallFlow(), [])
 
 	useEffect(() => {
-		// 1. Detect iOS / macOS Safari
-		const userAgent = window.navigator.userAgent.toLowerCase()
-		const isApple = /iphone|ipad|ipod|macintosh/.test(userAgent) && !/chrome|crios/i.test(userAgent)
-		setIsIOS(isApple)
-
-		// 2. Check if already installed
-		if (window.matchMedia('(display-mode: standalone)').matches) {
-			setIsInstalled(true)
-		}
-
-		// 3. Listen for Chrome/Edge prompt
-		const handler = (e: any) => {
+		const beforeInstallPromptHandler = (e: Event) => {
 			e.preventDefault()
-			setDeferredPrompt(e)
+			setDeferredPrompt(e as BeforeInstallPromptEvent)
 		}
-		window.addEventListener('beforeinstallprompt', handler)
+		const appInstalledHandler = () => {
+			setIsInstalled(true)
+			setDeferredPrompt(null)
+		}
 
-		return () => window.removeEventListener('beforeinstallprompt', handler)
+		window.addEventListener('beforeinstallprompt', beforeInstallPromptHandler)
+		window.addEventListener('appinstalled', appInstalledHandler)
+
+		return () => {
+			window.removeEventListener('beforeinstallprompt', beforeInstallPromptHandler)
+			window.removeEventListener('appinstalled', appInstalledHandler)
+		}
 	}, [])
 
 	const handleInstallClick = async () => {
@@ -48,7 +71,7 @@ export function PWAInstall() {
 	if (isInstalled) {
 		return (
 			<Button variant="ghost" size="sm" disabled className="gap-2 text-green-600 opacity-100">
-				<Check className="w-4 h-4" /> App Installed
+				<Check className="w-4 h-4" /> Installed
 			</Button>
 		)
 	}
@@ -58,7 +81,7 @@ export function PWAInstall() {
 		return (
 			<Button variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/5 text-primary" onClick={handleInstallClick}>
 				<Download className="w-4 h-4" />
-				Install App
+				Install Draftless
 			</Button>
 		)
 	}
@@ -70,14 +93,14 @@ export function PWAInstall() {
 				<DialogTrigger asChild>
 					<Button variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/5 text-primary">
 						<Download className="w-4 h-4" />
-						Install App
+						Install Draftless
 					</Button>
 				</DialogTrigger>
 				<DialogContent className="bg-card border-border text-card-foreground">
 					<DialogHeader>
-						<DialogTitle>Install DraftLess</DialogTitle>
+						<DialogTitle>Install Draftless</DialogTitle>
 						<DialogDescription>
-							To install this app on Safari, you need to add it manually.
+							Add Draftless to this device for quicker access.
 						</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-4 text-sm text-muted-foreground">

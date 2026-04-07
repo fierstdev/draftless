@@ -14,9 +14,16 @@ import { formatDistanceToNow } from 'date-fns';
 import { GitCommit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import dagre from 'dagre';
+import type { Snapshot } from '@/lib/snapshots';
+
+interface CheckpointNodeData {
+	label: string
+	timestamp: number
+	isCurrent: boolean
+}
 
 // --- CUSTOM NODE COMPONENT ---
-const CheckpointNode = ({ data, selected }: NodeProps) => {
+const CheckpointNode = ({ data, selected }: NodeProps<CheckpointNodeData>) => {
 	return (
 		<div className={cn(
 			"px-4 py-3 rounded-xl shadow-sm border min-w-[180px] transition-all duration-300 bg-card group",
@@ -97,9 +104,9 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
 
 // --- MAIN COMPONENT ---
 interface TimelineProps {
-	checkpoints: any[];
+	checkpoints: Snapshot[];
 	currentCheckpointId: string | null;
-	onRestore: (checkpoint: any) => void;
+	onRestore: (checkpoint: Snapshot) => void;
 }
 
 export function Timeline({ checkpoints, currentCheckpointId, onRestore }: TimelineProps) {
@@ -107,7 +114,7 @@ export function Timeline({ checkpoints, currentCheckpointId, onRestore }: Timeli
 	const { nodes, edges } = useMemo(() => {
 		if (!checkpoints.length) return { nodes: [], edges: [] };
 
-		const rawNodes: Node[] = checkpoints.map((cp) => ({
+		const rawNodes: Node<CheckpointNodeData>[] = checkpoints.map((cp) => ({
 			id: cp.id,
 			type: 'checkpoint',
 			position: { x: 0, y: 0 },
@@ -146,6 +153,7 @@ export function Timeline({ checkpoints, currentCheckpointId, onRestore }: Timeli
 					if (cp) onRestore(cp);
 				}}
 				fitView
+				fitViewOptions={{ padding: 0.12 }}
 				minZoom={0.2}
 				maxZoom={1.5}
 				proOptions={{ hideAttribution: true }}

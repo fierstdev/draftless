@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
-	Settings, Moon, Sun, Laptop, MonitorSmartphone, ShieldAlert
+	Settings, Moon, Sun, Laptop, MonitorSmartphone, ShieldAlert, CheckCircle2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,36 +18,41 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTheme } from "@/lib/theme-provider"
 import { PWAInstall } from "./PWAInstall"
 
+type AIProvider = 'google' | 'openai' | 'anthropic'
+
+function getInitialProvider(): AIProvider {
+	const storedProvider = localStorage.getItem("ai_provider")
+	return storedProvider === 'openai' || storedProvider === 'anthropic' ? storedProvider : 'google'
+}
+
+function isAIProvider(value: string): value is AIProvider {
+	return value === 'google' || value === 'openai' || value === 'anthropic'
+}
+
+function getInitialKeys() {
+	return {
+		google: localStorage.getItem("google_api_key") || '',
+		openai: localStorage.getItem("openai_api_key") || '',
+		anthropic: localStorage.getItem("anthropic_api_key") || '',
+	}
+}
+
 export function SettingsDialog() {
 	const { setTheme, theme } = useTheme()
 	const [isOpen, setIsOpen] = useState(false)
 
 	// AI Settings
-	const [provider, setProvider] = useState('google')
-	const [keys, setKeys] = useState({
-		google: '',
-		openai: '',
-		anthropic: ''
-	})
-
-	useEffect(() => {
-		// eslint-disable-next-line react-hooks/set-state-in-effect
-		setProvider(localStorage.getItem("ai_provider") || 'google')
-		setKeys({
-			google: localStorage.getItem("google_api_key") || '',
-			openai: localStorage.getItem("openai_api_key") || '',
-			anthropic: localStorage.getItem("anthropic_api_key") || '',
-		})
-	}, [])
+	const [provider, setProvider] = useState<AIProvider>(getInitialProvider)
+	const [keys, setKeys] = useState(getInitialKeys)
+	const [saved, setSaved] = useState(false)
 
 	const handleSave = () => {
 		localStorage.setItem("ai_provider", provider)
 		localStorage.setItem("google_api_key", keys.google)
 		localStorage.setItem("openai_api_key", keys.openai)
 		localStorage.setItem("anthropic_api_key", keys.anthropic)
-
-		// Force reload to ensure AI client picks up new config
-		window.location.reload()
+		setSaved(true)
+		window.setTimeout(() => setSaved(false), 2000)
 	}
 
 	return (
@@ -62,10 +67,10 @@ export function SettingsDialog() {
 				<DialogHeader className="px-6 py-4 border-b border-border bg-muted/30">
 					<DialogTitle className="flex items-center gap-2">
 						<Settings className="w-4 h-4 text-primary" />
-						Settings
+						Preferences
 					</DialogTitle>
 					<DialogDescription className="text-muted-foreground">
-						Configure your writing environment.
+						Shape your writing space and connect your AI tools.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -73,7 +78,7 @@ export function SettingsDialog() {
 					<Tabs defaultValue="intelligence" className="w-full">
 						<TabsList className="grid w-full grid-cols-2 mb-6 bg-muted text-muted-foreground">
 							<TabsTrigger value="appearance" className="data-[state=active]:bg-card data-[state=active]:text-foreground">Appearance</TabsTrigger>
-							<TabsTrigger value="intelligence" className="data-[state=active]:bg-card data-[state=active]:text-foreground">Intelligence</TabsTrigger>
+							<TabsTrigger value="intelligence" className="data-[state=active]:bg-card data-[state=active]:text-foreground">Writing Assistant</TabsTrigger>
 						</TabsList>
 
 						{/* APPEARANCE */}
@@ -90,13 +95,21 @@ export function SettingsDialog() {
 
 							{/* Provider Selector */}
 							<div className="space-y-3">
-								<Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Model Provider</Label>
-								<Select value={provider} onValueChange={setProvider}>
+								<Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Choose an AI Assistant</Label>
+								<Select
+									value={provider}
+									onValueChange={(value) => {
+										if (isAIProvider(value)) {
+											setProvider(value)
+											setSaved(false)
+										}
+									}}
+								>
 									<SelectTrigger className="bg-background border-border">
-										<SelectValue placeholder="Select Provider" />
+										<SelectValue placeholder="Choose an assistant" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="google">Google Gemini (Best for Free Tier)</SelectItem>
+										<SelectItem value="google">Google Gemini (easiest to get started)</SelectItem>
 										<SelectItem value="openai">OpenAI (GPT-4o)</SelectItem>
 										<SelectItem value="anthropic">Anthropic (Claude 3.5 Sonnet)</SelectItem>
 									</SelectContent>
@@ -106,20 +119,35 @@ export function SettingsDialog() {
 							{/* API Keys */}
 							<div className="space-y-4 border-t border-border pt-4">
 								<div className="space-y-2">
-									<Label className="text-xs">Google Gemini API Key</Label>
-									<Input type="password" value={keys.google} onChange={(e) => setKeys({...keys, google: e.target.value})} className="font-mono text-xs bg-background" placeholder="AIzaSy..." />
+									<Label className="text-xs">Google Gemini Key</Label>
+									<Input type="password" value={keys.google} onChange={(e) => {
+										setSaved(false)
+										setKeys({...keys, google: e.target.value})
+									}} className="font-mono text-xs bg-background" placeholder="AIzaSy..." />
 								</div>
 								<div className="space-y-2">
-									<Label className="text-xs">OpenAI API Key</Label>
-									<Input type="password" value={keys.openai} onChange={(e) => setKeys({...keys, openai: e.target.value})} className="font-mono text-xs bg-background" placeholder="sk-..." />
+									<Label className="text-xs">OpenAI Key</Label>
+									<Input type="password" value={keys.openai} onChange={(e) => {
+										setSaved(false)
+										setKeys({...keys, openai: e.target.value})
+									}} className="font-mono text-xs bg-background" placeholder="sk-..." />
 								</div>
 								<div className="space-y-2">
-									<Label className="text-xs">Anthropic API Key</Label>
-									<Input type="password" value={keys.anthropic} onChange={(e) => setKeys({...keys, anthropic: e.target.value})} className="font-mono text-xs bg-background" placeholder="sk-ant-..." />
+									<Label className="text-xs">Anthropic Key</Label>
+									<Input type="password" value={keys.anthropic} onChange={(e) => {
+										setSaved(false)
+										setKeys({...keys, anthropic: e.target.value})
+									}} className="font-mono text-xs bg-background" placeholder="sk-ant-..." />
 								</div>
 
-								<div className="flex justify-end pt-2">
-									<Button size="sm" onClick={handleSave} className="bg-primary text-primary-foreground hover:bg-primary/90">Save & Reload</Button>
+								<div className="flex items-center justify-between pt-2">
+									<div className="text-[11px] text-muted-foreground">
+										Changes apply to the next AI action. No reload needed.
+									</div>
+									<Button size="sm" onClick={handleSave} className="bg-primary text-primary-foreground hover:bg-primary/90">
+										{saved ? <CheckCircle2 className="w-4 h-4 mr-2" /> : null}
+										{saved ? 'Saved' : 'Save Preferences'}
+									</Button>
 								</div>
 							</div>
 
@@ -127,10 +155,10 @@ export function SettingsDialog() {
 							<div className="rounded-lg border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 p-3 flex gap-3">
 								<ShieldAlert className="w-5 h-5 text-yellow-600 dark:text-yellow-400 shrink-0" />
 								<div className="space-y-1">
-									<p className="text-xs font-medium text-yellow-800 dark:text-yellow-300">Client-Side Security</p>
+									<p className="text-xs font-medium text-yellow-800 dark:text-yellow-300">Stored In This Browser</p>
 									<p className="text-[10px] text-yellow-700 dark:text-yellow-400 leading-relaxed">
-										Keys are stored in your browser's LocalStorage. They are never sent to our servers, only directly to the AI provider.
-										<strong> Note:</strong> Anthropic/OpenAI may block browser requests due to CORS unless you use a proxy.
+										Your keys stay in this browser and go directly to the AI service you choose.
+										<strong> Note:</strong> Some services may block direct browser access. If that happens, use Gemini or connect through a proxy.
 									</p>
 								</div>
 							</div>
@@ -142,7 +170,7 @@ export function SettingsDialog() {
 				{/* Footer */}
 				<div className="px-6 py-4 bg-muted/10 border-t border-border flex items-center justify-between">
 					<div className="flex flex-col gap-0.5">
-						<span className="text-xs font-medium text-foreground">DraftLess System</span>
+						<span className="text-xs font-medium text-foreground">DraftLess for Writers</span>
 						<div className="flex items-center gap-1.5 text-muted-foreground">
 							<MonitorSmartphone className="w-3 h-3" />
 							<span className="text-[10px] font-mono">v0.9.0-beta</span>

@@ -1,7 +1,7 @@
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import { CodexManager } from '@/lib/codex'
+import { CodexManager, getEntityTerms, type CodexEntity } from '@/lib/codex'
 import * as Y from 'yjs'
 
 export const EntityHighlighter = (ydoc: Y.Doc) => {
@@ -26,31 +26,50 @@ export const EntityHighlighter = (ydoc: Y.Doc) => {
 								if (!node.isText || !node.text) return
 
 								const text = node.text
+								const candidates: Array<{ entity: CodexEntity; start: number; end: number }> = []
 
-								entities.forEach(entity => {
-									// Escape regex special characters
-									const safeName = entity.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+								entities.forEach((entity) => {
+									getEntityTerms(entity).forEach((term) => {
+										const safeTerm = escapeRegExp(term)
+										const regex = new RegExp(`\\b${safeTerm}\\b`, 'gi')
 
-									// Match whole words only, case insensitive
-									const regex = new RegExp(`\\b${safeName}\\b`, 'gi')
-
-									let match
-									while ((match = regex.exec(text)) !== null) {
-										const from = pos + match.index
-										const to = from + match[0].length
-
-										decorations.push(
-											Decoration.inline(from, to, {
-												nodeName: 'span',
-												// The class 'entity-highlight' is crucial for the HoverCard to find it
-												class: `entity-highlight border-b-2 cursor-help transition-colors hover:bg-muted/50 rounded-sm px-0.5`,
-												'data-entity-id': entity.id,
-												// Inject the color variable for the border
-												style: `border-color: ${entity.color};`
+										let match
+										while ((match = regex.exec(text)) !== null) {
+											candidates.push({
+												entity,
+												start: match.index,
+												end: match.index + match[0].length,
 											})
-										)
-									}
+										}
+									})
 								})
+
+								candidates
+									.sort(
+										(left, right) =>
+											right.end - right.start - (left.end - left.start) || left.start - right.start,
+									)
+									.reduce<Array<{ start: number; end: number; entity: CodexEntity }>>((accepted, candidate) => {
+										const overlapsExisting = accepted.some(
+											(existing) =>
+												candidate.start < existing.end && candidate.end > existing.start,
+										)
+										if (!overlapsExisting) {
+											accepted.push(candidate)
+										}
+										return accepted
+									}, [])
+									.sort((left, right) => left.start - right.start)
+									.forEach((match) => {
+										decorations.push(
+											Decoration.inline(pos + match.start, pos + match.end, {
+												nodeName: 'span',
+												class: 'entity-highlight border-b-2 cursor-pointer rounded-sm px-0.5 transition-opacity hover:opacity-80',
+												'data-entity-id': match.entity.id,
+												style: `border-color: ${match.entity.color};`,
+											}),
+										)
+									})
 							})
 
 							return DecorationSet.create(doc, decorations)
@@ -60,4 +79,8 @@ export const EntityHighlighter = (ydoc: Y.Doc) => {
 			]
 		},
 	})
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

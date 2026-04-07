@@ -9,6 +9,8 @@ import { useStore } from "@/lib/store"
 import { library } from "@/lib/storage"
 import { Library } from "./components/Library"
 import { ProjectManager } from '@/lib/project'
+import { getProjectDbName, waitForProviderSync } from '@/lib/persistence'
+import { useIsMobile } from '@/hooks/use-mobile'
 import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import {Analytics} from '@vercel/analytics/react';
@@ -19,13 +21,15 @@ function App() {
     const primaryFileId = useStore((state) => state.primaryFileId)
     const secondaryFileId = useStore((state) => state.secondaryFileId)
     const isSplitView = useStore((state) => state.isSplitView)
+    const setSplitView = useStore((state) => state.setSplitView)
     const activePane = useStore((state) => state.activePane)
     const setActivePane = useStore((state) => state.setActivePane)
     const openFile = useStore((state) => state.openFile)
+    const currentDocId = currentDoc?.id ?? null
+    const isMobile = useIsMobile()
 
     // MEMOIZED DOCS
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const projectDoc = useMemo(() => currentDoc ? new Y.Doc() : null, [currentDoc?.id])
+    const projectDoc = useMemo(() => currentDocId ? new Y.Doc() : null, [currentDocId])
     const primaryDoc = useMemo(() => primaryFileId ? new Y.Doc() : null, [primaryFileId])
     const secondaryDoc = useMemo(() => secondaryFileId ? new Y.Doc() : null, [secondaryFileId])
 
@@ -33,11 +37,21 @@ function App() {
     useEffect(() => { return () => primaryDoc?.destroy() }, [primaryDoc])
     useEffect(() => { return () => secondaryDoc?.destroy() }, [secondaryDoc])
 
+    useEffect(() => {
+        if (isMobile && isSplitView) {
+            setSplitView(false)
+        }
+    }, [isMobile, isSplitView, setSplitView])
+
     // PROJECT PERSISTENCE
     useEffect(() => {
         if (!currentDoc || !projectDoc) return
-        const provider = new IndexeddbPersistence(`draftless-project-${currentDoc.id}`, projectDoc)
-        provider.on('synced', () => {
+        const provider = new IndexeddbPersistence(getProjectDbName(currentDoc.id), projectDoc)
+        let isCancelled = false
+
+        void waitForProviderSync(provider).then(() => {
+            if (isCancelled) return
+
             const pm = new ProjectManager(projectDoc)
             const files = pm.getAll()
             if (files.length === 0) {
@@ -47,11 +61,17 @@ function App() {
                 openFile(files[0].id)
             }
         })
+
         const interval = setInterval(() => {
             const count = useStore.getState().wordCount
             if (count > 0) library.update(currentDoc.id, { wordCount: count })
         }, 5000)
-        return () => { provider.destroy(); clearInterval(interval) }
+
+        return () => {
+            isCancelled = true
+            provider.destroy()
+            clearInterval(interval)
+        }
     }, [currentDoc, projectDoc, primaryFileId, openFile])
 
     return (
@@ -71,7 +91,7 @@ function App() {
                                 {/* PANE 1 (PRIMARY) */}
                                 <ResizablePanel defaultSize={isSplitView ? 50 : 100} minSize={30}>
                                     <div
-                                        className={`h-full p-4 md:p-8 overflow-hidden transition-colors ${activePane === 'primary' ? 'bg-background' : 'bg-muted/10'}`}
+                                        className={`h-full overflow-hidden p-2 sm:p-4 md:p-8 transition-colors ${activePane === 'primary' ? 'bg-background' : 'bg-muted/10'}`}
                                         onClick={() => setActivePane('primary')}
                                     >
                                         {primaryFileId && primaryDoc ? (
@@ -91,12 +111,12 @@ function App() {
                                 </ResizablePanel>
 
                                 {/* PANE 2 */}
-                                {isSplitView && (
+                                {isSplitView && !isMobile && (
                                     <>
                                         <ResizableHandle withHandle />
                                         <ResizablePanel defaultSize={50} minSize={30}>
                                             <div
-                                                className={`h-full p-4 md:p-8 overflow-hidden transition-colors ${activePane === 'secondary' ? 'bg-background' : 'bg-muted/10'}`}
+                                                className={`h-full overflow-hidden p-2 sm:p-4 md:p-8 transition-colors ${activePane === 'secondary' ? 'bg-background' : 'bg-muted/10'}`}
                                                 onClick={() => setActivePane('secondary')}
                                             >
                                                 {secondaryFileId && secondaryDoc ? (

@@ -11,12 +11,22 @@ import {
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Editor } from "@tiptap/react"
+import { downloadBlob, sanitizeFilename } from "@/lib/download"
+import { cn } from "@/lib/utils"
 
 interface ExportDialogProps {
 	editor: Editor | null
+	filenameBase?: string
+	compact?: boolean
+	triggerClassName?: string
 }
 
-export function ExportDialog({ editor }: ExportDialogProps) {
+export function ExportDialog({
+	editor,
+	filenameBase = 'document',
+	compact = false,
+	triggerClassName,
+}: ExportDialogProps) {
 	const [copied, setCopied] = useState(false)
 
 	if (!editor) return null
@@ -27,40 +37,34 @@ export function ExportDialog({ editor }: ExportDialogProps) {
 		setTimeout(() => setCopied(false), 2000)
 	}
 
-	const handleDownload = (content: string, filename: string, type: string) => {
-		const blob = new Blob([content], { type })
-		const url = URL.createObjectURL(blob)
-		const a = document.createElement('a')
-		a.href = url
-		a.download = filename
-		document.body.appendChild(a)
-		a.click()
-		document.body.removeChild(a)
-		URL.revokeObjectURL(url)
-	}
-
 	// Tiptap to Markdown (Basic)
 	const getMarkdown = () => {
-		let text = editor.getText()
+		const text = editor.getText()
 		return text
 	}
 
 	const getHTML = () => editor.getHTML()
 	const getJSON = () => JSON.stringify(editor.getJSON(), null, 2)
+	const safeFilenameBase = sanitizeFilename(filenameBase)
 
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<Button variant="outline" size="sm" className="h-8 gap-2">
+				<Button
+					variant="outline"
+					size="sm"
+					title="Export this chapter or note"
+					className={cn("h-9 gap-2", compact ? "w-9 px-0" : "h-8", triggerClassName)}
+				>
 					<Download className="w-4 h-4" />
-					<span className="hidden sm:inline">Export</span>
+					<span className={compact ? "sr-only" : "hidden sm:inline"}>Export</span>
 				</Button>
 			</DialogTrigger>
 			<DialogContent className="sm:max-w-[500px] bg-card text-card-foreground border-border">
 				<DialogHeader>
-					<DialogTitle>Export Document</DialogTitle>
+					<DialogTitle>Export Chapter or Note</DialogTitle>
 					<DialogDescription>
-						Download your story or copy it to your clipboard.
+						Download this chapter or note, or copy it to your clipboard.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -76,15 +80,15 @@ export function ExportDialog({ editor }: ExportDialogProps) {
 						<div className="p-4 rounded-lg bg-muted/50 border border-border font-mono text-xs h-32 overflow-y-auto">
 							{getMarkdown()}
 						</div>
-						<div className="flex gap-2 justify-end">
-							<Button variant="secondary" onClick={() => handleCopy(getMarkdown())}>
-								{copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
-								Copy
-							</Button>
-							<Button onClick={() => handleDownload(getMarkdown(), 'story.md', 'text/markdown')}>
-								<Download className="w-4 h-4 mr-2" /> Download .md
-							</Button>
-						</div>
+							<div className="flex gap-2 justify-end">
+								<Button variant="secondary" onClick={() => handleCopy(getMarkdown())}>
+									{copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+									Copy
+								</Button>
+								<Button onClick={() => downloadBlob(new Blob([getMarkdown()], { type: 'text/markdown' }), `${safeFilenameBase}.md`)}>
+									<Download className="w-4 h-4 mr-2" /> Download Markdown
+								</Button>
+							</div>
 					</TabsContent>
 
 					{/* HTML TAB */}
@@ -92,14 +96,14 @@ export function ExportDialog({ editor }: ExportDialogProps) {
 						<div className="p-4 rounded-lg bg-muted/50 border border-border font-mono text-xs h-32 overflow-y-auto">
 							{getHTML()}
 						</div>
-						<div className="flex gap-2 justify-end">
-							<Button variant="secondary" onClick={() => handleCopy(getHTML())}>
-								<Copy className="w-4 h-4 mr-2" /> Copy
-							</Button>
-							<Button onClick={() => handleDownload(getHTML(), 'story.html', 'text/html')}>
-								<Download className="w-4 h-4 mr-2" /> Download .html
-							</Button>
-						</div>
+							<div className="flex gap-2 justify-end">
+								<Button variant="secondary" onClick={() => handleCopy(getHTML())}>
+									<Copy className="w-4 h-4 mr-2" /> Copy
+								</Button>
+								<Button onClick={() => downloadBlob(new Blob([getHTML()], { type: 'text/html' }), `${safeFilenameBase}.html`)}>
+									<Download className="w-4 h-4 mr-2" /> Download HTML
+								</Button>
+							</div>
 					</TabsContent>
 
 					{/* JSON TAB */}
@@ -111,7 +115,7 @@ export function ExportDialog({ editor }: ExportDialogProps) {
 							<Button variant="secondary" onClick={() => handleCopy(getJSON())}>
 								<Copy className="w-4 h-4 mr-2" /> Copy
 							</Button>
-							<Button onClick={() => handleDownload(getJSON(), 'backup.json', 'application/json')}>
+							<Button onClick={() => downloadBlob(new Blob([getJSON()], { type: 'application/json' }), `${safeFilenameBase}.json`)}>
 								<Download className="w-4 h-4 mr-2" /> Backup
 							</Button>
 						</div>

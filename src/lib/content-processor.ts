@@ -1,4 +1,5 @@
 import { generateHTML } from '@tiptap/html'
+import type { JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Typography from '@tiptap/extension-typography'
 import { SuggestionAdd, SuggestionDel, CommentMark } from '@/components/editor/ReviewExtension'
@@ -13,6 +14,88 @@ const extensions = [
 ]
 
 export type ExportMode = 'final' | 'original' | 'review'
+type JSONMark = NonNullable<JSONContent['marks']>[number]
+
+function isJSONContent(value: JSONContent | null): value is JSONContent {
+	return value !== null
+}
+
+function normalizeTextNode(node: JSONContent): JSONContent | null {
+	const normalizedNode = { ...node }
+
+	// Yjs can sometimes emit text nodes without a `type`.
+	if (!normalizedNode.type && typeof normalizedNode.text === 'string') {
+		normalizedNode.type = 'text'
+	}
+
+	if (!normalizedNode.type) {
+		return null
+	}
+
+	return normalizedNode
+}
+
+function filterMarks(marks: JSONMark[] | undefined, mode: ExportMode): JSONMark[] | null {
+	if (!marks || marks.length === 0) {
+		return []
+	}
+
+	const hasDeletion = marks.some((mark) => mark.type === 'suggestionDel')
+	const hasAddition = marks.some((mark) => mark.type === 'suggestionAdd')
+
+	if (hasDeletion && mode === 'final') {
+		return null
+	}
+
+	if (hasAddition && mode === 'original') {
+		return null
+	}
+
+	let nextMarks = marks
+
+	if (hasDeletion && mode === 'original') {
+		nextMarks = nextMarks.filter((mark) => mark.type !== 'suggestionDel')
+	}
+
+	if (hasAddition && mode === 'final') {
+		nextMarks = nextMarks.filter((mark) => mark.type !== 'suggestionAdd')
+	}
+
+	if (mode !== 'review') {
+		nextMarks = nextMarks.filter((mark) => mark.type !== 'comment')
+	}
+
+	return nextMarks
+}
+
+function traverseNodes(nodes: JSONContent[], mode: ExportMode): JSONContent[] {
+	return nodes
+		.map((child) => traverseNode(child, mode))
+		.filter(isJSONContent)
+}
+
+function traverseNode(node: JSONContent, mode: ExportMode): JSONContent | null {
+	const normalizedNode = normalizeTextNode(node)
+	if (!normalizedNode) {
+		return null
+	}
+
+	const filteredMarks = filterMarks(normalizedNode.marks, mode)
+	if (filteredMarks === null) {
+		return null
+	}
+
+	const nextNode: JSONContent = {
+		...normalizedNode,
+		marks: filteredMarks.length > 0 ? filteredMarks : undefined,
+	}
+
+	if (normalizedNode.content) {
+		nextNode.content = traverseNodes(normalizedNode.content, mode)
+	}
+
+	return nextNode
+}
 
 /**
  * CLEANING RULES:
@@ -20,86 +103,29 @@ export type ExportMode = 'final' | 'original' | 'review'
  * - ORIGINAL: Rejects additions, keeps deletions (as normal text), hides comments.
  * - REVIEW: Keeps everything visible.
  */
-export function processContent(json: any, mode: ExportMode): string {
+export function processContent(json: JSONContent | JSONContent[] | null | undefined, mode: ExportMode): string {
 	if (!json) return ''
 
-	// Deep clone
-	const cleanContent = JSON.parse(JSON.stringify(json))
-
-	// 1. SANITIZE & FILTER TRAVERSAL
-	const traverse = (node: any) => {
-		// Handle Arrays (e.g. the root content list)
-		if (Array.isArray(node)) {
-			return node.map(traverse).filter(Boolean)
-		}
-
-		// Fix Yjs Text Node Weirdness:
-		// Sometimes Yjs returns { text: "foo" } without type: "text"
-		if (!node.type && node.text) {
-			node.type = 'text'
-		}
-
-		// If still no type, it's invalid garbage. Kill it.
-		if (!node.type) return null
-
-		// Filter Children
-		if (node.content) {
-			node.content = node.content.map((child: any) => {
-				// Handle Marks (Track Changes)
-				if (child.marks) {
-					const hasDel = child.marks.find((m: any) => m.type === 'suggestionDel')
-					const hasAdd = child.marks.find((m: any) => m.type === 'suggestionAdd')
-					// const hasComment = child.marks.find((m: any) => m.type === 'comment')
-
-					// DELETIONS
-					if (hasDel) {
-						if (mode === 'final') return null // Remove
-						if (mode === 'original') {
-							// Strip mark, keep text
-							child.marks = child.marks.filter((m: any) => m.type !== 'suggestionDel')
-						}
-					}
-
-					// ADDITIONS
-					if (hasAdd) {
-						if (mode === 'original') return null // Remove
-						if (mode === 'final') {
-							// Strip mark, keep text
-							child.marks = child.marks.filter((m: any) => m.type !== 'suggestionAdd')
-						}
-					}
-
-					// COMMENTS
-					if (mode !== 'review') {
-						child.marks = child.marks.filter((m: any) => m.type !== 'comment')
-					}
-				}
-
-				// Recurse
-				return traverse(child)
-			}).filter(Boolean)
-		}
-
-		return node
-	}
+	// Deep clone before mutating content for export processing.
+	const cleanContent = JSON.parse(JSON.stringify(json)) as JSONContent | JSONContent[]
 
 	// 2. PREPARE DOC STRUCTURE
 	// If input is an array (Yjs fragment), wrap it in a Doc
-	const root = Array.isArray(cleanContent)
+	const root: JSONContent = Array.isArray(cleanContent)
 		? { type: 'doc', content: cleanContent }
 		: cleanContent
 
 	// 3. RUN TRAVERSAL
 	if (root.content) {
-		root.content = traverse(root.content)
+		root.content = traverseNodes(root.content, mode)
 	}
 
 	// 4. GENERATE HTML
 	try {
 		return generateHTML(root, extensions)
-	} catch (e) {
+	} catch (error) {
 		console.error("Compile Error on Node:", root)
-		console.error(e)
+		console.error(error)
 		return "<p>[Error processing chapter content]</p>"
 	}
 }

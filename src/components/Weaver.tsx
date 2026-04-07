@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Check, RefreshCw, ArrowRight, Sparkles, X, Columns, CircuitBoard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { weaveText, type WeaveStrategy } from '@/lib/ai-client';
+import { WeaveError, weaveText, type WeaveStrategy } from '@/lib/ai-client';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { cn } from '@/lib/utils';
 
@@ -22,31 +22,35 @@ interface WeaverProps {
 export function Weaver({ isOpen, onClose, currentText, checkpointText, onConfirm }: WeaverProps) {
 	const [strategy, setStrategy] = useState<WeaveStrategy>('mix');
 	const [result, setResult] = useState<string>('');
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 	const isDesktop = useMediaQuery("(min-width: 768px)");
-
-	useEffect(() => {
-		if (isOpen) {
-			setResult('');
-			setStrategy('mix');
-			setLoading(false);
-		}
-	}, [isOpen]);
+	const canWeave = !loading && currentText.trim().length > 0 && checkpointText.trim().length > 0;
 
 	const handleTabChange = (val: string) => {
+		if (loading) return;
 		setStrategy(val as WeaveStrategy);
 		setResult('');
+		setErrorMessage(null);
 	};
 
 	const handleWeave = async () => {
+		if (!canWeave) return;
 		setLoading(true);
+		setErrorMessage(null);
+		setResult('');
 		try {
 			const merged = await weaveText(currentText, checkpointText, strategy);
 			setResult(merged);
-		} catch (e) {
-			setResult("Error: Could not generate weave.");
+		} catch (error) {
+			setErrorMessage(
+				error instanceof WeaveError
+					? error.message
+					: "Draftless couldn't draft a new pass right now. Please try again."
+			);
+		} finally {
+			setLoading(false);
 		}
-		setLoading(false);
 	};
 
 	return (
@@ -62,7 +66,7 @@ export function Weaver({ isOpen, onClose, currentText, checkpointText, onConfirm
 							</div>
 							<div className="flex flex-col text-left">
 								<span className="leading-none tracking-tight">Semantic Weaver</span>
-								<span className="text-[10px] font-bold text-primary uppercase tracking-wider mt-1.5">Merge Studio</span>
+								<span className="text-[10px] font-bold text-primary uppercase tracking-wider mt-1.5">Draft Studio</span>
 							</div>
 						</DrawerTitle>
 					</div>
@@ -70,9 +74,9 @@ export function Weaver({ isOpen, onClose, currentText, checkpointText, onConfirm
 					<div className="flex items-center gap-6">
 						<Tabs value={strategy} onValueChange={handleTabChange}>
 							<TabsList className="bg-muted p-1 h-9 border border-border">
-								<TabsTrigger value="mix" className="text-xs px-4 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Smart Mix</TabsTrigger>
-								<TabsTrigger value="action_b_tone_a" className="text-xs px-4 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Restyle</TabsTrigger>
-								<TabsTrigger value="append" className="text-xs px-4 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Connect</TabsTrigger>
+								<TabsTrigger disabled={loading} value="mix" className="text-xs px-4 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Smart Mix</TabsTrigger>
+								<TabsTrigger disabled={loading} value="action_b_tone_a" className="text-xs px-4 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Restyle</TabsTrigger>
+								<TabsTrigger disabled={loading} value="append" className="text-xs px-4 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Connect</TabsTrigger>
 							</TabsList>
 						</Tabs>
 
@@ -96,7 +100,7 @@ export function Weaver({ isOpen, onClose, currentText, checkpointText, onConfirm
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" /> Current Draft
                       </span>
-										<Badge variant="secondary" className="text-[10px] h-5">Locked</Badge>
+										<Badge variant="secondary" className="text-[10px] h-5">Read Only</Badge>
 									</div>
 									<ScrollArea className="flex-1 overflow-y-auto">
 										<div className="p-6 text-sm text-foreground/80 font-serif leading-relaxed whitespace-pre-wrap selection:bg-muted selection:text-foreground">
@@ -108,9 +112,9 @@ export function Weaver({ isOpen, onClose, currentText, checkpointText, onConfirm
 								<div className="flex-1 flex flex-col min-h-0 bg-primary/5">
 									<div className="px-5 py-3 bg-background border-b border-border flex items-center justify-between shrink-0">
                       <span className="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary" /> Checkpoint
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary" /> Saved Version
                       </span>
-										<Badge variant="outline" className="text-[10px] h-5 bg-background text-primary border-primary/30 font-medium shadow-sm">Source</Badge>
+										<Badge variant="outline" className="text-[10px] h-5 bg-background text-primary border-primary/30 font-medium shadow-sm">Reference</Badge>
 									</div>
 									<ScrollArea className="flex-1 overflow-y-auto">
 										<div className="p-6 text-sm text-foreground/80 font-serif leading-relaxed whitespace-pre-wrap selection:bg-primary/20">
@@ -131,12 +135,12 @@ export function Weaver({ isOpen, onClose, currentText, checkpointText, onConfirm
                           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary">
                              <Columns className="h-3 w-3" />
                           </span>
-										<span className="text-xs font-bold text-foreground/80 uppercase tracking-wide">Merged Output</span>
+										<span className="text-xs font-bold text-foreground/80 uppercase tracking-wide">New Draft</span>
 									</div>
 
 									{result && (
-										<Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={handleWeave}>
-											<RefreshCw className="w-3 h-3 mr-1" /> Re-roll
+										<Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={handleWeave} disabled={loading}>
+											<RefreshCw className="w-3 h-3 mr-1" /> Try Another Pass
 										</Button>
 									)}
 								</div>
@@ -155,7 +159,7 @@ export function Weaver({ isOpen, onClose, currentText, checkpointText, onConfirm
 													<Skeleton className="h-4 w-4/5" />
 												</div>
 												<div className="flex items-center gap-2 justify-center pt-8 text-primary text-xs font-bold uppercase tracking-widest animate-pulse">
-													<CircuitBoard className="w-4 h-4" /> Processing...
+													<CircuitBoard className="w-4 h-4" /> Weaving...
 												</div>
 											</div>
 										) : result ? (
@@ -164,20 +168,33 @@ export function Weaver({ isOpen, onClose, currentText, checkpointText, onConfirm
 													{result}
 												</div>
 											</div>
+										) : errorMessage ? (
+											<div className="h-full flex flex-col items-center justify-center gap-5 p-12 text-center">
+												<div className="max-w-md rounded-2xl border border-destructive/20 bg-destructive/5 p-6 text-left shadow-sm">
+													<h3 className="text-sm font-semibold text-foreground">Weaver is unavailable right now</h3>
+													<p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+														{errorMessage}
+													</p>
+												</div>
+												<Button onClick={handleWeave} className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-10 rounded-lg shadow-lg transition-all" disabled={!canWeave}>
+													<RefreshCw className="w-4 h-4 mr-2" />
+													Try Again
+												</Button>
+											</div>
 										) : (
 											<div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-6 p-12 text-center">
 												<div className="w-20 h-20 rounded-2xl bg-card shadow-sm border border-border flex items-center justify-center mb-2">
 													<ArrowRight className="w-8 h-8 opacity-50" />
 												</div>
 												<div className="space-y-2 max-w-sm">
-													<h3 className="text-base font-semibold text-foreground">Ready to Merge</h3>
+													<h3 className="text-base font-semibold text-foreground">Ready to Weave</h3>
 													<p className="text-sm">
-														Select a strategy from the top bar to begin the AI merge process.
+														Choose a weaving mode above to draft a new version from these two passages.
 													</p>
 												</div>
-												<Button onClick={handleWeave} className="mt-4 bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-10 rounded-lg shadow-lg transition-all">
+												<Button onClick={handleWeave} className="mt-4 bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-10 rounded-lg shadow-lg transition-all" disabled={!canWeave}>
 													<Sparkles className="w-4 h-4 mr-2" />
-													Generate Preview
+													{canWeave ? 'Draft a New Pass' : 'Two Passages Needed'}
 												</Button>
 											</div>
 										)}
@@ -191,12 +208,12 @@ export function Weaver({ isOpen, onClose, currentText, checkpointText, onConfirm
 				{/* FOOTER */}
 				<DrawerFooter className="bg-background border-t border-border p-4 flex flex-row items-center justify-end gap-3 shrink-0 h-20 z-20">
 					<DrawerClose asChild>
-						<Button variant="ghost" className="px-6 text-muted-foreground hover:text-foreground">Cancel</Button>
+						<Button variant="ghost" className="px-6 text-muted-foreground hover:text-foreground">Close</Button>
 					</DrawerClose>
 					{result && (
-						<Button onClick={() => onConfirm(result)} className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-11 shadow-lg text-sm font-medium">
+						<Button onClick={() => onConfirm(result)} className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-11 shadow-lg text-sm font-medium" disabled={loading}>
 							<Check className="w-4 h-4 mr-2" />
-							Confirm & Merge
+							Use This Draft
 						</Button>
 					)}
 				</DrawerFooter>

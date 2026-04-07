@@ -15,11 +15,9 @@ import {
 	ExternalLink
 } from 'lucide-react';
 import { formatDistanceToNow } from "date-fns"
-import * as Y from "yjs"
-import { IndexeddbPersistence } from "y-indexeddb"
-import { openDB } from "idb"
-import { CodexManager } from "@/lib/codex"
-import { ProjectManager } from "@/lib/project"
+import { DEMO_PROJECT_TITLE, seedShowcaseDemoProject } from '@/lib/demo-project'
+import { ConfirmActionDialog } from '@/components/ConfirmActionDialog'
+import { NoticeBanner } from '@/components/NoticeBanner'
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,9 +42,6 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog"
-import StarterKit from '@tiptap/starter-kit';
-import Collaboration from '@tiptap/extension-collaboration';
-import {Editor} from '@tiptap/react';
 import {SettingsDialog} from '@/components/SettingsDialog.tsx';
 
 export function Library() {
@@ -58,6 +53,8 @@ export function Library() {
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
 	const [renameTitle, setRenameTitle] = useState("")
 	const [docToRename, setDocToRename] = useState<DocumentMeta | null>(null)
+	const [docToDelete, setDocToDelete] = useState<DocumentMeta | null>(null)
+	const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
 	const setCurrentDoc = useStore((state) => state.setCurrentDoc)
 
@@ -69,14 +66,28 @@ export function Library() {
 	}
 
 	useEffect(() => {
-		// eslint-disable-next-line react-hooks/set-state-in-effect
-		loadLibrary()
+		let isMounted = true
+
+		void library.list()
+			.then((list) => {
+				if (!isMounted) return
+				setDocs(list)
+				setLoading(false)
+			})
+			.catch(() => {
+				if (!isMounted) return
+				setLoading(false)
+			})
+
+		return () => {
+			isMounted = false
+		}
 	}, [])
 
 	const handleCreate = async () => {
 		if (!newTitle.trim()) return
 		const newDoc = await library.create(newTitle)
-		setDocs([newDoc, ...docs])
+		setDocs((currentDocs) => [newDoc, ...currentDocs])
 		setNewTitle("")
 		setIsDialogOpen(false)
 		setCurrentDoc(newDoc)
@@ -85,71 +96,32 @@ export function Library() {
 	// --- DEMO GENERATOR ---
 	const createDemoProject = async () => {
 		setCreatingDemo(true)
-		const docMeta = await library.create("The Neon Protocol (Demo)")
+		setErrorMessage(null)
+		let createdDemoId: string | null = null
 
-		// 1. Init Project Structure
-		const ydoc = new Y.Doc()
-		const provider = new IndexeddbPersistence(`draftless-project-${docMeta.id}`, ydoc)
-		await new Promise<void>(r => provider.on('synced', () => r()))
+		try {
+			const existingDemo = docs.find((doc) => doc.title === DEMO_PROJECT_TITLE)
+			if (existingDemo) {
+				setCurrentDoc(existingDemo)
+				return
+			}
 
-		const codex = new CodexManager(ydoc)
-		codex.add({ name: "Rook", type: "character", description: "A washed-up hacker with a chrome arm.", color: "#3b82f6" })
-		codex.add({ name: "Sector 4", type: "location", description: "The industrial district. Smells of ozone and rust.", color: "#10b981" })
+			const docMeta = await library.create(DEMO_PROJECT_TITLE)
+			createdDemoId = docMeta.id
+			const wordCount = await seedShowcaseDemoProject(docMeta.id)
+			await library.update(docMeta.id, { wordCount })
 
-		const pm = new ProjectManager(ydoc)
-		const ch1 = pm.create("The Infiltration", "chapter")
-
-		// 2. Init Chapter Content (Headless Editor)
-		const ch1Doc = new Y.Doc()
-		const ch1Provider = new IndexeddbPersistence(`draftless-doc-${ch1}`, ch1Doc)
-		await new Promise<void>(r => ch1Provider.on('synced', () => r()))
-
-		// Spin up headless editor to write valid Tiptap data
-		const tempEditor = new Editor({
-			extensions: [
-				StarterKit,
-				Collaboration.configure({ document: ch1Doc })
-			]
-		})
-
-		// Write initial text
-		const initialText = "The rain in Sector 4 never really touched the ground; it just turned into steam. Rook adjusted his cybernetic grip."
-		tempEditor.commands.setContent(initialText)
-
-		// Capture JSON for snapshot
-		const baseJson = tempEditor.getJSON()
-
-		// 3. Create History
-		const db = await openDB(`draftless-snapshots-${ch1}`, 4, {
-			upgrade(db) { db.createObjectStore('snapshots', { keyPath: 'id' }) }
-		})
-
-		const baseId = crypto.randomUUID()
-		// Base Snapshot
-		await db.put('snapshots', {
-			id: baseId,
-			timestamp: Date.now() - 3600000,
-			description: "Initial Draft",
-			content: baseJson,
-			parentId: null
-		})
-
-		// Divergent Snapshot
-		await db.put('snapshots', {
-			id: crypto.randomUUID(),
-			timestamp: Date.now(),
-			description: "Stealth Approach",
-			content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: "He bypassed the firewall silently. The guards didn't even blink." }] }] },
-			parentId: baseId
-		})
-
-		// Cleanup
-		tempEditor.destroy()
-		await ch1Provider.destroy()
-		await provider.destroy()
-
-		await loadLibrary()
-		setCreatingDemo(false)
+			await loadLibrary()
+			setCurrentDoc({ ...docMeta, wordCount })
+		} catch (error) {
+			console.error(error)
+			if (createdDemoId) {
+				await library.delete(createdDemoId).catch(() => undefined)
+			}
+			setErrorMessage("Demo creation failed. Please try again.")
+		} finally {
+			setCreatingDemo(false)
+		}
 	}
 
 	const handleRename = async () => {
@@ -160,53 +132,76 @@ export function Library() {
 		setRenameTitle("")
 	}
 
-	const handleDelete = async (e: React.MouseEvent, id: string) => {
+	const handleDelete = (e: React.MouseEvent, doc: DocumentMeta) => {
 		e.stopPropagation()
-		if (!confirm("Delete this story permanently? This cannot be undone.")) return
-		await library.delete(id)
-		await loadLibrary()
+		setDocToDelete(doc)
+	}
+
+	const confirmDelete = async () => {
+		if (!docToDelete) return
+		try {
+			setErrorMessage(null)
+			await library.delete(docToDelete.id)
+			await loadLibrary()
+			setDocToDelete(null)
+		} catch (error) {
+			console.error(error)
+			setErrorMessage("Couldn't delete this story yet. Close any open Draftless tabs for it and try again.")
+			setDocToDelete(null)
+		}
 	}
 
 	return (
-		<div className="min-h-screen bg-background p-8 animate-in fade-in duration-500 flex flex-col">
-			<div className="max-w-6xl mx-auto space-y-12 w-full flex-1 flex flex-col">
+		<div className="min-h-screen bg-background px-4 py-5 sm:p-8 animate-in fade-in duration-500 flex flex-col">
+			<div className="max-w-6xl mx-auto space-y-6 sm:space-y-10 lg:space-y-12 w-full flex-1 flex flex-col">
 
 				{/* TOP BAR */}
-				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-3">
+				<div className="space-y-4 sm:flex sm:items-center sm:justify-between sm:space-y-0">
+					<div className="flex items-center gap-3 min-w-0">
 
 							<img
 								src="/mask-icon.png"
 								alt="Draftless logo"
-								className="size-14 rounded-xl" />
+								className="size-12 sm:size-14 rounded-xl shrink-0" />
 
-						<div>
-							<h1 className="text-2xl font-bold tracking-tight text-foreground">Draftless</h1>
-							<p className="text-muted-foreground text-sm">Local-First Writing Studio</p>
+						<div className="min-w-0">
+							<h1 className="truncate text-xl sm:text-2xl font-bold tracking-tight text-foreground">Draftless</h1>
+							<p className="text-muted-foreground text-sm leading-relaxed">A writing studio for brave drafts</p>
 						</div>
 					</div>
 
-					<div className="flex items-center gap-3">
+					<div className="shrink-0 sm:hidden">
 						<SettingsDialog />
+					</div>
+
+					<div className="grid grid-cols-1 gap-2 sm:flex sm:items-center sm:gap-3">
+						<div className="hidden sm:block">
+							<SettingsDialog />
+						</div>
 						{docs.length > 0 && (
-							<Button variant="outline" onClick={createDemoProject} disabled={creatingDemo}>
+							<Button
+								variant="outline"
+								onClick={createDemoProject}
+								disabled={creatingDemo}
+								className="w-full sm:w-auto justify-center"
+							>
 								{creatingDemo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2 text-purple-500" />}
-								Load Demo
+								Open Demo Story
 							</Button>
 						)}
 						<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
 							<DialogTrigger asChild>
-								<Button className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg">
+								<Button className="w-full sm:w-auto gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg justify-center">
 									<Plus className="w-4 h-4" /> New Story
 								</Button>
 							</DialogTrigger>
 							<DialogContent className="bg-card border-border sm:max-w-[425px]">
 								<DialogHeader>
-									<DialogTitle>Create New Story</DialogTitle>
+									<DialogTitle>Start a New Story</DialogTitle>
 								</DialogHeader>
 								<div className="py-4">
 									<Input
-										placeholder="Story Title"
+										placeholder="Story title"
 										value={newTitle}
 										onChange={(e) => setNewTitle(e.target.value)}
 										onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
@@ -215,12 +210,20 @@ export function Library() {
 									/>
 								</div>
 								<DialogFooter>
-									<Button onClick={handleCreate} disabled={!newTitle.trim()}>Create</Button>
+									<Button onClick={handleCreate} disabled={!newTitle.trim()}>Start Story</Button>
 								</DialogFooter>
 							</DialogContent>
 						</Dialog>
 					</div>
 				</div>
+
+				{errorMessage && (
+					<NoticeBanner
+						variant="error"
+						message={errorMessage}
+						onDismiss={() => setErrorMessage(null)}
+					/>
+				)}
 
 				{/* MAIN CONTENT */}
 				{loading ? (
@@ -230,24 +233,24 @@ export function Library() {
 				) : docs.length === 0 ? (
 					/* EMPTY STATE ONBOARDING */
 					<div className="flex-1 flex items-center">
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center py-12">
-							<div className="space-y-6">
-								<h2 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl mb-4">
+						<div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center py-4 sm:py-8 lg:py-12">
+							<div className="space-y-5">
+								<h2 className="mb-3 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
 									Write without fear.<br/>
-									<span className="text-primary">Edit with intelligence.</span>
+									<span className="text-primary">Find your way back anytime.</span>
 								</h2>
-								<p className="text-lg text-muted-foreground leading-relaxed max-w-md">
-									Draftless treats your prose like code. Branch your story to explore new ideas, merge
-									conflicting drafts with AI, and keep your world bible synced automatically.
+								<p className="max-w-md text-base sm:text-lg text-muted-foreground leading-relaxed">
+									Draftless gives you room to explore. Try alternate scenes, compare saved versions,
+									keep your story notes close at hand, and ask AI for help when two drafts pull in different directions.
 								</p>
-								<div className="flex gap-4 pt-4">
+								<div className="flex flex-col sm:flex-row gap-3 pt-2 sm:pt-4">
 									<Button size="lg" onClick={() => setIsDialogOpen(true)}
-									        className="text-base px-8 h-12 shadow-xl shadow-primary/20">
+									        className="text-base px-6 sm:px-8 h-11 sm:h-12 shadow-xl shadow-primary/20">
 										Start Writing
 									</Button>
 									<Button size="lg" variant="outline" onClick={createDemoProject}
 									        disabled={creatingDemo}
-									        className="text-base px-8 h-12 border-primary/20 hover:bg-primary/5">
+									        className="text-base px-6 sm:px-8 h-11 sm:h-12 border-primary/20 hover:bg-primary/5">
 										{creatingDemo ? <Loader2 className="w-5 h-5 animate-spin mr-2"/> :
 											<Sparkles className="w-5 h-5 mr-2 text-purple-600"/>}
 										Try the Demo
@@ -256,47 +259,47 @@ export function Library() {
 							</div>
 
 							{/* Feature Grid */}
-							<div className="grid gap-4">
-								<FeatureCard
-									icon={GitBranch}
-									title="Time Machine"
-									desc="Branch your story like code. Create 'What If' scenarios and merge them back later."
-									color="text-blue-500"
-								/>
-								<FeatureCard
-									icon={BrainCircuit}
-									title="Semantic Weaver"
-									desc="Use AI to resolve plot holes when merging two conflicting drafts of a scene."
-									color="text-purple-500"
-								/>
-								<FeatureCard
-									icon={Book}
-									title="Smart Codex"
-									desc="Your world bible lives in the text. Hover over characters to see their details instantly."
-									color="text-emerald-500"
-								/>
+								<div className="grid gap-3 sm:gap-4">
+									<FeatureCard
+										icon={GitBranch}
+										title="Time Machine"
+										desc="Save alternate passes, revisit earlier versions, and follow your best ideas without losing anything."
+										color="text-blue-500"
+									/>
+									<FeatureCard
+										icon={BrainCircuit}
+										title="Semantic Weaver"
+										desc="Ask AI to blend two scene drafts into a fresh new pass when your story splits."
+										color="text-purple-500"
+									/>
+									<FeatureCard
+										icon={Book}
+										title="Smart Codex"
+										desc="Keep characters, places, objects, and lore within reach while you write."
+										color="text-emerald-500"
+									/>
 							</div>
 						</div>
 						</div>
 						) : (
 						/* LIBRARY GRID */
-						<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+						<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
 							{docs.map((doc) => (
 								<Card
 									key={doc.id}
-									className="group cursor-pointer bg-card border-border hover:border-primary/50 transition-all hover:shadow-lg hover:-translate-y-1"
+									className="group cursor-pointer bg-card border-border hover:border-primary/50 transition-all hover:shadow-lg hover:-translate-y-1 rounded-2xl"
 									onClick={() => setCurrentDoc(doc)}
 								>
-									<CardHeader className="pb-3">
+									<CardHeader className="pb-3 p-4 sm:p-5">
 										<div className="flex justify-between items-start">
 											<div
-												className="p-2.5 bg-primary/10 rounded-xl text-primary mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-												<Book className="w-6 h-6"/>
+												className="mb-3 rounded-xl bg-primary/10 p-2 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground sm:p-2.5">
+												<Book className="h-5 w-5 sm:h-6 sm:w-6"/>
 											</div>
 											<DropdownMenu>
 												<DropdownMenuTrigger asChild>
 													<Button variant="ghost" size="icon"
-													        className="h-8 w-8 -mr-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground">
+													        className="h-8 w-8 -mr-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground">
 														<MoreVertical className="w-4 h-4"/>
 													</Button>
 												</DropdownMenuTrigger>
@@ -310,20 +313,20 @@ export function Library() {
 													</DropdownMenuItem>
 													<DropdownMenuItem
 														className="text-destructive focus:text-destructive focus:bg-destructive/10"
-														onClick={(e) => handleDelete(e, doc.id)}
+														onClick={(e) => handleDelete(e, doc)}
 													>
 														<Trash2 className="w-4 h-4 mr-2"/> Delete
 													</DropdownMenuItem>
 												</DropdownMenuContent>
 											</DropdownMenu>
 										</div>
-										<CardTitle className="leading-tight text-lg">{doc.title}</CardTitle>
+										<CardTitle className="leading-tight text-base sm:text-lg">{doc.title}</CardTitle>
 										<CardDescription className="line-clamp-1 text-xs font-medium pt-1">
 											{doc.wordCount || 0} words
 										</CardDescription>
 									</CardHeader>
 									<CardFooter
-										className="text-[10px] text-muted-foreground border-t border-border/50 bg-muted/20 py-3 flex items-center gap-3">
+										className="border-t border-border/50 bg-muted/20 px-4 sm:px-5 py-3 text-[10px] text-muted-foreground flex items-center gap-3">
                         <span className="flex items-center gap-1.5">
                             <Calendar className="w-3 h-3 opacity-70"/>
 	                        {formatDistanceToNow(doc.updatedAt, {addSuffix: true})}
@@ -353,9 +356,26 @@ export function Library() {
 							</DialogContent>
 						</Dialog>
 
+						<ConfirmActionDialog
+							open={!!docToDelete}
+							onOpenChange={(open) => {
+								if (!open) {
+									setDocToDelete(null)
+								}
+							}}
+							title="Delete Story"
+							description={
+								docToDelete
+									? `Delete "${docToDelete.title}" permanently? This also removes its chapters, notes, and saved versions on this device.`
+									: 'Delete this story permanently?'
+							}
+							confirmLabel="Delete Story"
+							onConfirm={confirmDelete}
+						/>
+
 						{/* FOOTER */}
-						<footer className="w-full py-3 border-t border-border/40 text-center shrink-0">
-							<div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+						<footer className="w-full py-3 sm:py-4 border-t border-border/40 text-center shrink-0">
+							<div className="flex flex-wrap items-center justify-center gap-1.5 text-xs text-muted-foreground">
 								<span>Built by</span>
 
 								<a
@@ -381,12 +401,12 @@ export function Library() {
 
 				function FeatureCard({icon: Icon, title, desc, color}) {
 	return (
-		<div className="flex gap-4 p-4 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors">
-			<div className={`p-3 rounded-lg bg-background h-fit border border-border/50 shadow-sm ${color}`}>
-				<Icon className="w-6 h-6" />
+		<div className="flex gap-3 sm:gap-4 p-4 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors">
+			<div className={`p-2.5 sm:p-3 rounded-lg bg-background h-fit border border-border/50 shadow-sm ${color}`}>
+				<Icon className="w-5 h-5 sm:w-6 sm:h-6" />
 			</div>
 			<div>
-				<h3 className="font-semibold text-foreground">{title}</h3>
+				<h3 className="font-semibold text-foreground text-sm sm:text-base">{title}</h3>
 				<p className="text-sm text-muted-foreground mt-1 leading-relaxed">{desc}</p>
 			</div>
 		</div>
