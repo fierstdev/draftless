@@ -10,47 +10,51 @@ export interface TextOccurrenceRange {
 	to: number
 }
 
-export function findTextOccurrenceRange(
+export function findAllTextOccurrenceRanges(
 	doc: ProseMirrorNode,
-	target: TextOccurrenceTarget,
-): TextOccurrenceRange | null {
-	const query = target.text.trim()
-	if (!query) return null
+	queryText: string,
+): TextOccurrenceRange[] {
+	const query = queryText.trim()
+	if (!query) return []
 
 	const indexedText = buildIndexedText(doc)
 	const haystack = indexedText.text.toLocaleLowerCase()
 	const needle = query.toLocaleLowerCase()
+	const ranges: TextOccurrenceRange[] = []
 
-	let occurrence = 0
 	let searchStart = 0
 
 	while (searchStart <= haystack.length) {
 		const matchIndex = haystack.indexOf(needle, searchStart)
-		if (matchIndex === -1) return null
-
-		if (occurrence === target.occurrenceInFile) {
-			const startPosition = indexedText.positions
-				.slice(matchIndex, matchIndex + needle.length)
-				.find((position): position is number => position !== null)
-			const endPosition = [...indexedText.positions.slice(matchIndex, matchIndex + needle.length)]
-				.reverse()
-				.find((position): position is number => position !== null)
-
-			if (startPosition === undefined || endPosition === undefined) {
-				return null
-			}
-
-			return {
-				from: startPosition,
-				to: endPosition + 1,
-			}
+		if (matchIndex === -1) {
+			break
 		}
 
-		occurrence += 1
+		const startPosition = indexedText.positions
+			.slice(matchIndex, matchIndex + needle.length)
+			.find((position): position is number => position !== null)
+		const endPosition = [...indexedText.positions.slice(matchIndex, matchIndex + needle.length)]
+			.reverse()
+			.find((position): position is number => position !== null)
+
+		if (startPosition !== undefined && endPosition !== undefined) {
+			ranges.push({
+				from: startPosition,
+				to: endPosition + 1,
+			})
+		}
+
 		searchStart = matchIndex + Math.max(needle.length, 1)
 	}
 
-	return null
+	return ranges
+}
+
+export function findTextOccurrenceRange(
+	doc: ProseMirrorNode,
+	target: TextOccurrenceTarget,
+): TextOccurrenceRange | null {
+	return findAllTextOccurrenceRanges(doc, target.text)[target.occurrenceInFile] ?? null
 }
 
 function buildIndexedText(doc: ProseMirrorNode): { text: string; positions: Array<number | null> } {

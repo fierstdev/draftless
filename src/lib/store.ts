@@ -40,6 +40,9 @@ interface AppState {
 	pendingJumpTarget: EditorJumpTarget | null
 	setPendingJumpTarget: (target: EditorJumpTarget | null) => void
 	clearPendingJumpTarget: () => void
+	isFocusMode: boolean
+	setFocusMode: (enabled: boolean) => void
+	toggleFocusMode: () => void
 
 	// Status & Stats
 	collabStatus: 'loading' | 'connected' | 'offline'
@@ -74,6 +77,7 @@ export const useStore = create<AppState>((set, get) => ({
 		collabStatus: 'loading',
 		fileFilters: DEFAULT_PROJECT_FILE_FILTERS,
 		activeFileViewId: null,
+		isFocusMode: false,
 	}),
 
 	sidebarTab: 'files',
@@ -144,6 +148,9 @@ export const useStore = create<AppState>((set, get) => ({
 	pendingJumpTarget: null,
 	setPendingJumpTarget: (pendingJumpTarget) => set({ pendingJumpTarget }),
 	clearPendingJumpTarget: () => set({ pendingJumpTarget: null }),
+	isFocusMode: false,
+	setFocusMode: (isFocusMode) => set({ isFocusMode }),
+	toggleFocusMode: () => set((state) => ({ isFocusMode: !state.isFocusMode })),
 
 	collabStatus: 'loading',
 	setCollabStatus: (collabStatus) => set({ collabStatus }),

@@ -154,7 +154,12 @@ function SnapshotPanel({
 	side: 'left' | 'right'
 }) {
 	return (
-		<div className={cn('min-h-0', side === 'left' ? 'border-b border-border md:border-b-0 md:border-r' : '')}>
+		<div
+			className={cn(
+				'flex min-h-0 flex-col',
+				side === 'left' ? 'border-b border-border md:border-b-0 md:border-r' : '',
+			)}
+		>
 			<div className="border-b border-border bg-muted/20 px-4 py-3">
 				<div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
 					{title}
@@ -171,8 +176,8 @@ function SnapshotPanel({
 				)}
 			</div>
 
-			<ScrollArea className="h-[calc(88vh-164px)]">
-				<div className="space-y-3 p-3 md:p-4">
+			<ScrollArea className="min-h-0 flex-1">
+				<div className="space-y-3 p-3 pb-6 md:p-4 md:pb-8">
 					{segmentsByRow.length === 0 && (
 						<div className="rounded-2xl border border-dashed border-border bg-muted/10 px-4 py-12 text-center text-sm text-muted-foreground">
 							No changes to show.

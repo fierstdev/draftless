@@ -10,6 +10,11 @@ import { library } from "@/lib/storage"
 import { Library } from "./components/Library"
 import { ProjectManager } from '@/lib/project'
 import { getProjectDbName, waitForProviderSync } from '@/lib/persistence'
+import {
+    applyEntityHighlightPreferences,
+    getInitialEntityHighlightOpacity,
+    getInitialEntityHighlightVisibility,
+} from '@/lib/entity-highlights'
 import { useIsMobile } from '@/hooks/use-mobile'
 import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
@@ -22,6 +27,7 @@ function App() {
     const secondaryFileId = useStore((state) => state.secondaryFileId)
     const isSplitView = useStore((state) => state.isSplitView)
     const setSplitView = useStore((state) => state.setSplitView)
+    const isFocusMode = useStore((state) => state.isFocusMode)
     const activePane = useStore((state) => state.activePane)
     const setActivePane = useStore((state) => state.setActivePane)
     const openFile = useStore((state) => state.openFile)
@@ -42,6 +48,19 @@ function App() {
             setSplitView(false)
         }
     }, [isMobile, isSplitView, setSplitView])
+
+    useEffect(() => {
+        if (isFocusMode && isSplitView) {
+            setSplitView(false)
+        }
+    }, [isFocusMode, isSplitView, setSplitView])
+
+    useEffect(() => {
+        applyEntityHighlightPreferences({
+            visibility: getInitialEntityHighlightVisibility(),
+            opacity: getInitialEntityHighlightOpacity(),
+        })
+    }, [])
 
     // PROJECT PERSISTENCE
     useEffect(() => {
@@ -79,19 +98,31 @@ function App() {
             {!currentDoc || !projectDoc ? (
                 <Library />
             ) : (
-                <SidebarProvider style={{ "--sidebar-width": "24rem" } as React.CSSProperties}>
-                    <AppSidebar projectDoc={projectDoc} activeFileId={activePane === 'primary' ? primaryFileId || '' : secondaryFileId || ''} />
+                <SidebarProvider
+                    className="h-dvh overflow-hidden"
+                    style={{ "--sidebar-width": "24rem" } as React.CSSProperties}
+                >
+                    {!isFocusMode && (
+                        <AppSidebar
+                            projectDoc={projectDoc}
+                            activeFileId={activePane === 'primary' ? primaryFileId || '' : secondaryFileId || ''}
+                        />
+                    )}
 
-                    <SidebarInset>
-                        <AppHeader projectDoc={projectDoc} />
+                    <SidebarInset className="min-h-0 overflow-hidden">
+                        {!isFocusMode && <AppHeader projectDoc={projectDoc} />}
 
-                        <div className="flex flex-1 flex-col overflow-hidden bg-muted/10">
-                            <ResizablePanelGroup direction="horizontal" className="flex-1 h-full">
+                        <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${isFocusMode ? 'bg-background' : 'bg-muted/10'}`}>
+                            <ResizablePanelGroup direction="horizontal" className="h-full min-h-0 flex-1">
 
                                 {/* PANE 1 (PRIMARY) */}
                                 <ResizablePanel defaultSize={isSplitView ? 50 : 100} minSize={30}>
                                     <div
-                                        className={`h-full overflow-hidden p-2 sm:p-4 md:p-8 transition-colors ${activePane === 'primary' ? 'bg-background' : 'bg-muted/10'}`}
+                                        className={`h-full min-h-0 overflow-hidden transition-colors ${
+                                            isFocusMode
+                                                ? 'bg-background p-2 sm:p-4 md:p-5 lg:p-6'
+                                                : `p-2 sm:p-4 md:p-8 ${activePane === 'primary' ? 'bg-background' : 'bg-muted/10'}`
+                                        }`}
                                         onClick={() => setActivePane('primary')}
                                     >
                                         {primaryFileId && primaryDoc ? (
@@ -102,7 +133,7 @@ function App() {
                                                 projectDoc={projectDoc}
                                                 isActivePane={activePane === 'primary'}
                                                 onFocus={() => setActivePane('primary')}
-                                                className="max-w-3xl mx-auto"
+                                                className={`h-full w-full ${isFocusMode ? 'max-w-[1480px]' : 'max-w-[1320px]'}`}
                                             />
                                         ) : (
                                             <div className="flex h-full items-center justify-center text-muted-foreground">Select a chapter</div>
@@ -116,7 +147,11 @@ function App() {
                                         <ResizableHandle withHandle />
                                         <ResizablePanel defaultSize={50} minSize={30}>
                                             <div
-                                                className={`h-full overflow-hidden p-2 sm:p-4 md:p-8 transition-colors ${activePane === 'secondary' ? 'bg-background' : 'bg-muted/10'}`}
+                                                className={`h-full min-h-0 overflow-hidden transition-colors ${
+                                                    isFocusMode
+                                                        ? 'bg-background p-2 sm:p-4 md:p-5 lg:p-6'
+                                                        : `p-2 sm:p-4 md:p-8 ${activePane === 'secondary' ? 'bg-background' : 'bg-muted/10'}`
+                                                }`}
                                                 onClick={() => setActivePane('secondary')}
                                             >
                                                 {secondaryFileId && secondaryDoc ? (
@@ -127,7 +162,7 @@ function App() {
                                                         projectDoc={projectDoc}
                                                         isActivePane={activePane === 'secondary'}
                                                         onFocus={() => setActivePane('secondary')}
-                                                        className="max-w-3xl mx-auto"
+                                                        className={`h-full w-full ${isFocusMode ? 'max-w-[1480px]' : 'max-w-[1320px]'}`}
                                                     />
                                                 ) : (
                                                     <div className="flex h-full items-center justify-center text-muted-foreground">Select a chapter for split view</div>

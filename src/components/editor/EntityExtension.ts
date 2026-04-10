@@ -64,9 +64,9 @@ export const EntityHighlighter = (ydoc: Y.Doc) => {
 										decorations.push(
 											Decoration.inline(pos + match.start, pos + match.end, {
 												nodeName: 'span',
-												class: 'entity-highlight border-b-2 cursor-pointer rounded-sm px-0.5 transition-opacity hover:opacity-80',
+												class: 'entity-highlight cursor-pointer transition-colors',
 												'data-entity-id': match.entity.id,
-												style: `border-color: ${match.entity.color};`,
+												style: `--entity-color: ${match.entity.color};`,
 											}),
 										)
 									})

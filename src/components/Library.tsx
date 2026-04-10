@@ -10,6 +10,7 @@ import {
 	Loader2,
 	Pencil,
 	Sparkles,
+	RotateCcw,
 	GitBranch,
 	BrainCircuit,
 	ExternalLink
@@ -48,15 +49,18 @@ export function Library() {
 	const [docs, setDocs] = useState<DocumentMeta[]>([])
 	const [loading, setLoading] = useState(true)
 	const [creatingDemo, setCreatingDemo] = useState(false)
+	const [resettingDemo, setResettingDemo] = useState(false)
 
 	const [newTitle, setNewTitle] = useState("")
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
 	const [renameTitle, setRenameTitle] = useState("")
 	const [docToRename, setDocToRename] = useState<DocumentMeta | null>(null)
 	const [docToDelete, setDocToDelete] = useState<DocumentMeta | null>(null)
+	const [shouldConfirmDemoReset, setShouldConfirmDemoReset] = useState(false)
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
 	const setCurrentDoc = useStore((state) => state.setCurrentDoc)
+	const demoDoc = docs.find((doc) => doc.title === DEMO_PROJECT_TITLE) ?? null
 
 	const loadLibrary = async () => {
 		setLoading(true)
@@ -93,34 +97,67 @@ export function Library() {
 		setCurrentDoc(newDoc)
 	}
 
-	// --- DEMO GENERATOR ---
-	const createDemoProject = async () => {
-		setCreatingDemo(true)
-		setErrorMessage(null)
+	const createSeededDemoStory = async (): Promise<DocumentMeta> => {
 		let createdDemoId: string | null = null
 
 		try {
-			const existingDemo = docs.find((doc) => doc.title === DEMO_PROJECT_TITLE)
-			if (existingDemo) {
-				setCurrentDoc(existingDemo)
-				return
-			}
-
 			const docMeta = await library.create(DEMO_PROJECT_TITLE)
 			createdDemoId = docMeta.id
 			const wordCount = await seedShowcaseDemoProject(docMeta.id)
 			await library.update(docMeta.id, { wordCount })
 
-			await loadLibrary()
-			setCurrentDoc({ ...docMeta, wordCount })
+			return { ...docMeta, wordCount }
 		} catch (error) {
-			console.error(error)
 			if (createdDemoId) {
 				await library.delete(createdDemoId).catch(() => undefined)
 			}
+
+			throw error
+		}
+	}
+
+	// --- DEMO GENERATOR ---
+	const openOrCreateDemoProject = async () => {
+		if (demoDoc) {
+			setCurrentDoc(demoDoc)
+			return
+		}
+
+		setCreatingDemo(true)
+		setErrorMessage(null)
+
+		try {
+			const createdDemo = await createSeededDemoStory()
+			await loadLibrary()
+			setCurrentDoc(createdDemo)
+		} catch (error) {
+			console.error(error)
 			setErrorMessage("Demo creation failed. Please try again.")
 		} finally {
 			setCreatingDemo(false)
+		}
+	}
+
+	const resetDemoProject = async () => {
+		if (!demoDoc) {
+			await openOrCreateDemoProject()
+			return
+		}
+
+		setResettingDemo(true)
+		setErrorMessage(null)
+
+		try {
+			await library.delete(demoDoc.id)
+			const createdDemo = await createSeededDemoStory()
+			await loadLibrary()
+			setCurrentDoc(createdDemo)
+			setShouldConfirmDemoReset(false)
+		} catch (error) {
+			console.error(error)
+			setErrorMessage("Couldn't refresh the demo story just yet. Please try again in a moment.")
+		} finally {
+			setResettingDemo(false)
 		}
 	}
 
@@ -179,15 +216,28 @@ export function Library() {
 							<SettingsDialog />
 						</div>
 						{docs.length > 0 && (
-							<Button
-								variant="outline"
-								onClick={createDemoProject}
-								disabled={creatingDemo}
-								className="w-full sm:w-auto justify-center"
-							>
-								{creatingDemo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2 text-purple-500" />}
-								Open Demo Story
-							</Button>
+							<>
+								<Button
+									variant="outline"
+									onClick={openOrCreateDemoProject}
+									disabled={creatingDemo || resettingDemo}
+									className="w-full sm:w-auto justify-center"
+								>
+									{creatingDemo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2 text-purple-500" />}
+									{demoDoc ? 'Open Demo Story' : 'Load Demo Story'}
+								</Button>
+								{demoDoc && (
+									<Button
+										variant="ghost"
+										onClick={() => setShouldConfirmDemoReset(true)}
+										disabled={creatingDemo || resettingDemo}
+										className="w-full sm:w-auto justify-center"
+									>
+										{resettingDemo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+										Reset Demo
+									</Button>
+								)}
+							</>
 						)}
 						<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
 							<DialogTrigger asChild>
@@ -248,7 +298,7 @@ export function Library() {
 									        className="text-base px-6 sm:px-8 h-11 sm:h-12 shadow-xl shadow-primary/20">
 										Start Writing
 									</Button>
-									<Button size="lg" variant="outline" onClick={createDemoProject}
+									<Button size="lg" variant="outline" onClick={openOrCreateDemoProject}
 									        disabled={creatingDemo}
 									        className="text-base px-6 sm:px-8 h-11 sm:h-12 border-primary/20 hover:bg-primary/5">
 										{creatingDemo ? <Loader2 className="w-5 h-5 animate-spin mr-2"/> :
@@ -311,6 +361,16 @@ export function Library() {
 													}}>
 														<Pencil className="w-4 h-4 mr-2"/> Rename
 													</DropdownMenuItem>
+													{doc.title === DEMO_PROJECT_TITLE && (
+														<DropdownMenuItem
+															onClick={(event) => {
+																event.stopPropagation()
+																setShouldConfirmDemoReset(true)
+															}}
+														>
+															<RotateCcw className="mr-2 h-4 w-4" /> Reset Demo
+														</DropdownMenuItem>
+													)}
 													<DropdownMenuItem
 														className="text-destructive focus:text-destructive focus:bg-destructive/10"
 														onClick={(e) => handleDelete(e, doc)}
@@ -371,6 +431,15 @@ export function Library() {
 							}
 							confirmLabel="Delete Story"
 							onConfirm={confirmDelete}
+						/>
+
+						<ConfirmActionDialog
+							open={shouldConfirmDemoReset}
+							onOpenChange={setShouldConfirmDemoReset}
+							title="Reset Demo Story"
+							description="Replace the demo with a fresh copy? This keeps the current story list clean and reloads the full showcase from the beginning."
+							confirmLabel={resettingDemo ? 'Resetting...' : 'Reset Demo'}
+							onConfirm={resetDemoProject}
 						/>
 
 						{/* FOOTER */}

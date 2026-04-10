@@ -118,7 +118,6 @@ export function FilesView({ projectDoc, isCollapsed }: FilesViewProps) {
 		() => savedViews.find((view) => view.id === activeFileViewId) ?? null,
 		[activeFileViewId, savedViews],
 	)
-	const isSavedViewsOpen = activeFileViewId ? true : savedViewsExpanded
 	const activeFilterSummary = useMemo(() => {
 		if (activeSavedView) {
 			return getProjectFileFilterSummary(activeSavedView.filters)
@@ -279,7 +278,7 @@ export function FilesView({ projectDoc, isCollapsed }: FilesViewProps) {
 	}
 
 		return (
-			<div className="flex flex-col h-full bg-sidebar-accent/10">
+			<div className="flex h-full min-h-0 flex-col bg-sidebar-accent/10">
 			<div className="p-3 md:p-4 border-b border-sidebar-border bg-sidebar shrink-0 space-y-2.5 md:space-y-3">
 					<Button
 						onClick={openCreateDialog}
@@ -478,11 +477,11 @@ export function FilesView({ projectDoc, isCollapsed }: FilesViewProps) {
 					/>
 				)}
 			</div>
-			<ScrollArea className="flex-1">
+			<ScrollArea className="min-h-0 flex-1">
 					<div className="p-2.5 flex flex-col gap-1.5">
 						{savedViews.length > 0 && (
 							<Collapsible
-								open={isSavedViewsOpen}
+								open={savedViewsExpanded}
 								onOpenChange={setSavedViewsExpanded}
 								className="mb-2.5 rounded-xl border border-sidebar-border bg-sidebar p-2"
 							>
@@ -503,7 +502,7 @@ export function FilesView({ projectDoc, isCollapsed }: FilesViewProps) {
 										<ChevronDown
 											className={cn(
 												'h-3.5 w-3.5 text-muted-foreground transition-transform',
-												isSavedViewsOpen && 'rotate-180',
+												savedViewsExpanded && 'rotate-180',
 											)}
 										/>
 									</Button>

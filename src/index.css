@@ -176,6 +176,16 @@
     @apply bg-background text-foreground;
   }
 
+  :root {
+    --entity-highlight-line-opacity: 68%;
+    --entity-highlight-hover-line-opacity: 84%;
+    --entity-highlight-text-opacity: 16%;
+    --entity-highlight-hover-text-opacity: 28%;
+    --entity-highlight-band-opacity: 10%;
+    --entity-highlight-hover-band-opacity: 18%;
+    --entity-highlight-line-size: 1.5px;
+  }
+
   @media (max-width: 767px) and (pointer: coarse) {
     input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
     textarea,
@@ -185,5 +195,201 @@
     [data-slot="select-trigger"] {
       font-size: 16px !important;
     }
+  }
+}
+
+@layer components {
+  .draftless-editor {
+    color: var(--foreground);
+    font-family: var(--font-serif);
+    font-size: 1.125rem;
+    line-height: 1.9;
+    word-break: break-word;
+  }
+
+  .draftless-editor > *:first-child {
+    margin-top: 0;
+  }
+
+  .draftless-editor > * + * {
+    margin-top: 1.1em;
+  }
+
+  .draftless-editor p {
+    margin: 0;
+  }
+
+  .draftless-editor h1,
+  .draftless-editor h2,
+  .draftless-editor h3,
+  .draftless-editor h4 {
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin: 1.4em 0 0.55em;
+  }
+
+  .draftless-editor h1 {
+    font-size: clamp(2rem, 3vw, 2.6rem);
+  }
+
+  .draftless-editor h2 {
+    font-size: clamp(1.55rem, 2.3vw, 2rem);
+  }
+
+  .draftless-editor h3 {
+    font-size: clamp(1.3rem, 1.8vw, 1.6rem);
+  }
+
+  .draftless-editor ul,
+  .draftless-editor ol {
+    margin: 1em 0;
+    padding-left: 1.5em;
+  }
+
+  .draftless-editor ul {
+    list-style: disc;
+  }
+
+  .draftless-editor ol {
+    list-style: decimal;
+  }
+
+  .draftless-editor li {
+    margin: 0.35em 0;
+    padding-left: 0.15em;
+  }
+
+  .draftless-editor li > p {
+    margin: 0;
+  }
+
+  .draftless-editor blockquote {
+    margin: 1.25em 0;
+    border-left: 3px solid color-mix(in srgb, var(--primary) 55%, transparent);
+    padding: 0.15em 0 0.15em 1em;
+    color: color-mix(in srgb, var(--foreground) 82%, transparent);
+    font-style: italic;
+  }
+
+  .draftless-editor code {
+    border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+    background: color-mix(in srgb, var(--muted) 68%, transparent);
+    border-radius: 0.45rem;
+    padding: 0.1em 0.35em;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+  }
+
+  .draftless-editor pre {
+    margin: 1.2em 0;
+    overflow-x: auto;
+    border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+    background: color-mix(in srgb, var(--muted) 55%, transparent);
+    border-radius: 0.9rem;
+    padding: 1rem 1.1rem;
+  }
+
+  .draftless-editor pre code {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-size: 0.95rem;
+  }
+
+  .draftless-editor hr {
+    margin: 1.8em 0;
+    border: 0;
+    border-top: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  }
+
+  .draftless-editor strong {
+    font-weight: 700;
+  }
+
+  .draftless-editor a {
+    color: color-mix(in srgb, var(--primary) 88%, white 12%);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.14em;
+  }
+
+  .draftless-editor .entity-highlight {
+    border-radius: 0;
+    padding: 0;
+    color: color-mix(
+      in srgb,
+      var(--foreground) calc(100% - var(--entity-highlight-text-opacity, 16%)),
+      var(--entity-color, var(--primary)) var(--entity-highlight-text-opacity, 16%)
+    );
+    text-decoration-line: underline;
+    text-decoration-style: solid;
+    text-decoration-thickness: var(--entity-highlight-line-size, 1.5px);
+    text-underline-offset: 0.14em;
+    text-decoration-skip-ink: none;
+    text-decoration-color: color-mix(
+      in srgb,
+      var(--entity-color, var(--primary)) var(--entity-highlight-line-opacity, 68%),
+      transparent
+    );
+    background-image: linear-gradient(
+      to top,
+      color-mix(
+        in srgb,
+        var(--entity-color, var(--primary)) var(--entity-highlight-band-opacity, 10%),
+        transparent
+      ) 0,
+      color-mix(
+        in srgb,
+        var(--entity-color, var(--primary)) var(--entity-highlight-band-opacity, 10%),
+        transparent
+      ) 0.18em,
+      transparent 0.18em
+    );
+    background-repeat: no-repeat;
+    transition:
+      color 140ms ease,
+      text-decoration-color 140ms ease,
+      background-image 140ms ease;
+  }
+
+  .draftless-editor .entity-highlight:hover {
+    color: color-mix(
+      in srgb,
+      var(--foreground) calc(100% - var(--entity-highlight-hover-text-opacity, 28%)),
+      var(--entity-color, var(--primary)) var(--entity-highlight-hover-text-opacity, 28%)
+    );
+    text-decoration-color: color-mix(
+      in srgb,
+      var(--entity-color, var(--primary)) var(--entity-highlight-hover-line-opacity, 84%),
+      transparent
+    );
+    background-image: linear-gradient(
+      to top,
+      color-mix(
+        in srgb,
+        var(--entity-color, var(--primary)) var(--entity-highlight-hover-band-opacity, 18%),
+        transparent
+      ) 0,
+      color-mix(
+        in srgb,
+        var(--entity-color, var(--primary)) var(--entity-highlight-hover-band-opacity, 18%),
+        transparent
+      ) 0.22em,
+      transparent 0.22em
+    );
+  }
+
+  :root[data-entity-highlights='hidden'] .draftless-editor .entity-highlight {
+    color: inherit;
+    text-decoration-color: transparent;
+    background-image: none;
+  }
+
+  :root[data-entity-highlights='hidden'] .draftless-editor .entity-highlight:hover {
+    color: inherit;
+    background-image: none;
   }
 }

@@ -8,6 +8,7 @@ import { CompileDialog } from "@/components/CompileDialog"
 import { ExportDialog } from "@/components/ExportDialog"
 import { SearchPalette } from "@/components/SearchPalette"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useMediaQuery } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
 import { ProjectManager } from "@/lib/project"
 import * as Y from 'yjs'
@@ -26,6 +27,8 @@ export function AppHeader({ projectDoc }: AppHeaderProps) {
 	const editor = useStore((state) => state.editor)
 	const activeFileId = useStore((state) => state.activeFileId)
 	const isMobile = useIsMobile()
+	const isCompactDesktop = useMediaQuery('(max-width: 1400px)')
+	const isTightDesktop = useMediaQuery('(max-width: 1240px)')
 
 	if (!currentDoc) return null
 
@@ -69,47 +72,61 @@ export function AppHeader({ projectDoc }: AppHeaderProps) {
 						</div>
 					</div>
 
-					<SearchPalette
-						key={currentDoc.id}
-						projectDoc={projectDoc}
-						triggerClassName="w-full"
-					/>
-
-					<div className="grid grid-cols-2 gap-2">
+					<div className="flex items-center gap-2">
+						<SearchPalette
+							key={currentDoc.id}
+							projectDoc={projectDoc}
+							triggerClassName="h-8 flex-1 px-2.5 text-xs"
+						/>
 						<ExportDialog
 							editor={editor}
 							filenameBase={activeFileTitle}
-							triggerClassName="h-9 w-full justify-center"
+							compact
+							triggerClassName="h-8 w-8 shrink-0 px-0"
 						/>
 						<CompileDialog
 							projectDoc={projectDoc}
 							storyTitle={currentDoc.title}
-							triggerClassName="h-9 w-full justify-center"
+							compact
+							triggerClassName="h-8 w-8 shrink-0 px-0"
 						/>
 					</div>
 				</>
 			) : (
 				<>
-					<div className="flex min-w-0 items-center gap-2">
+					<div className="flex min-w-0 flex-1 items-center gap-2">
 						<SidebarTrigger className="-ml-1" />
 						<Separator orientation="vertical" className="mr-2 h-4" />
 						<Breadcrumb className="min-w-0">
 							<BreadcrumbList>
 								<BreadcrumbItem>
-									<Button variant="ghost" size="sm" className="px-2 h-auto font-normal text-muted-foreground hover:text-foreground" onClick={() => setCurrentDoc(null)}>
+									<Button variant="ghost" size="sm" className="h-auto shrink-0 px-2 font-normal text-muted-foreground hover:text-foreground" onClick={() => setCurrentDoc(null)}>
 										<ChevronLeft className="w-4 h-4 mr-1" /> Stories
 									</Button>
 								</BreadcrumbItem>
 								<BreadcrumbSeparator />
 								<BreadcrumbItem>
-									<span className="font-semibold text-foreground">{currentDoc.title}</span>
+									<span className="block max-w-[240px] truncate font-semibold text-foreground lg:max-w-[320px] xl:max-w-[420px] 2xl:max-w-[520px]">
+										{currentDoc.title}
+									</span>
 								</BreadcrumbItem>
 							</BreadcrumbList>
 						</Breadcrumb>
 					</div>
 
-					<div className="flex items-center gap-3">
-						<SearchPalette key={currentDoc.id} projectDoc={projectDoc} />
+					<div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-2 xl:gap-3">
+						<SearchPalette
+							key={currentDoc.id}
+							projectDoc={projectDoc}
+							triggerClassName={cn(
+								"min-w-0 shrink",
+								isTightDesktop
+									? "w-[200px]"
+									: isCompactDesktop
+										? "w-[228px]"
+										: "w-[260px] xl:w-[300px]",
+							)}
+						/>
 
 						<Button
 							variant="ghost"
@@ -121,21 +138,34 @@ export function AppHeader({ projectDoc }: AppHeaderProps) {
 							{isSplitView ? <Maximize className="w-4 h-4" /> : <Columns className="w-4 h-4" />}
 						</Button>
 
-						<div className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-muted/50 border border-border/50">
+						<div
+							className="flex items-center gap-1.5 rounded-full border border-border/50 bg-muted/50 px-2.5 py-1.5 text-xs font-medium"
+							title={`${collabStatus === 'loading' ? 'Opening…' : collabStatus === 'connected' ? 'Saved' : 'Working offline'} • ${wordCount} words`}
+						>
 							{collabStatus === 'loading' && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
 							{collabStatus === 'connected' && <Cloud className="w-3.5 h-3.5 text-primary" />}
 							{collabStatus === 'offline' && <CloudOff className="w-3.5 h-3.5 text-destructive" />}
-							<span className="text-muted-foreground hidden sm:inline-block">
-                    {collabStatus === 'loading' ? 'Opening...' : collabStatus === 'connected' ? 'Saved' : 'Working offline'}
-                </span>
+							<span className="text-muted-foreground">
+								{collabStatus === 'loading' ? 'Opening...' : collabStatus === 'connected' ? 'Saved' : 'Offline'}
+							</span>
+							{!isTightDesktop && (
+								<>
+									<span className="h-3 w-px bg-border/70" />
+									<span className="text-muted-foreground">{wordCount} words</span>
+								</>
+							)}
 						</div>
 
-						<div className="hidden sm:flex items-center px-3 py-1.5 bg-muted/50 rounded-full border border-border/50 text-xs font-medium text-muted-foreground">
-							{wordCount} words
-						</div>
-
-						<ExportDialog editor={editor} filenameBase={activeFileTitle} />
-						<CompileDialog projectDoc={projectDoc} storyTitle={currentDoc.title} />
+						<ExportDialog
+							editor={editor}
+							filenameBase={activeFileTitle}
+							compact={isCompactDesktop}
+						/>
+						<CompileDialog
+							projectDoc={projectDoc}
+							storyTitle={currentDoc.title}
+							compact={isCompactDesktop}
+						/>
 					</div>
 				</>
 			)}
