@@ -29,7 +29,7 @@ import { getProjectFileMetadataBadges, getProjectFileMetadataSummary, ProjectMan
 import { useStore } from '@/lib/store'
 import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import {
 	Bold, Italic, Strikethrough, Heading2, List, ListOrdered, Quote, Code, BookOpen, Search, ChevronUp, ChevronDown, Replace, X, Undo2, Redo2, BetweenHorizonalEnd, Pilcrow, Focus, Minimize2, MoreHorizontal, Type
@@ -56,6 +56,8 @@ export function Editor({ ydoc, docId, projectDoc, isActivePane, onFocus, classNa
 	const pendingJumpTarget = useStore((state) => state.pendingJumpTarget)
 	const clearPendingJumpTarget = useStore((state) => state.clearPendingJumpTarget)
 	const highlightTimeoutRef = useRef<number | null>(null)
+	const findScrollFrameRef = useRef<number | null>(null)
+	const editorScrollRegionRef = useRef<HTMLDivElement | null>(null)
 	const findInputRef = useRef<HTMLInputElement | null>(null)
 	const toolbarSelectionRef = useRef<{ from: number; to: number } | null>(null)
 	const [isCodexDialogOpen, setIsCodexDialogOpen] = useState(false)
@@ -121,6 +123,46 @@ export function Editor({ ydoc, docId, projectDoc, isActivePane, onFocus, classNa
 		},
 	}, [ydoc, projectDoc])
 
+	const scrollFindMatchIntoView = useCallback((match: TextOccurrenceRange) => {
+		if (!editor || editor.isDestroyed) return
+
+		const scrollRegion = editorScrollRegionRef.current
+		if (!scrollRegion) return
+
+		if (findScrollFrameRef.current !== null) {
+			window.cancelAnimationFrame(findScrollFrameRef.current)
+		}
+
+		findScrollFrameRef.current = window.requestAnimationFrame(() => {
+			findScrollFrameRef.current = null
+
+			try {
+				const startCoords = editor.view.coordsAtPos(match.from)
+				const endCoords = editor.view.coordsAtPos(Math.max(match.to - 1, match.from))
+				const scrollRegionRect = scrollRegion.getBoundingClientRect()
+				const matchTop = Math.min(startCoords.top, endCoords.top)
+				const matchBottom = Math.max(startCoords.bottom, endCoords.bottom)
+				const padding = 28
+				const isAboveViewport = matchTop < scrollRegionRect.top + padding
+				const isBelowViewport = matchBottom > scrollRegionRect.bottom - padding
+
+				if (isAboveViewport || isBelowViewport) {
+					const targetTop =
+						scrollRegion.scrollTop +
+						(matchTop - scrollRegionRect.top) -
+						scrollRegion.clientHeight * 0.35
+
+					scrollRegion.scrollTo({
+						top: Math.max(targetTop, 0),
+						behavior: 'smooth',
+					})
+				}
+			} catch (error) {
+				console.error('Failed to scroll to active find match', error)
+			}
+		})
+	}, [editor])
+
 	// 3. Sync to Global Store (Only if Active Pane)
 	useEffect(() => {
 		if (isActivePane && editor && !editor.isDestroyed) {
@@ -151,6 +193,9 @@ export function Editor({ ydoc, docId, projectDoc, isActivePane, onFocus, classNa
 		return () => {
 			if (highlightTimeoutRef.current !== null) {
 				window.clearTimeout(highlightTimeoutRef.current)
+			}
+			if (findScrollFrameRef.current !== null) {
+				window.cancelAnimationFrame(findScrollFrameRef.current)
 			}
 		}
 	}, [])
@@ -272,10 +317,10 @@ export function Editor({ ydoc, docId, projectDoc, isActivePane, onFocus, classNa
 		editor.view.dispatch(
 			editor.state.tr
 				.setSelection(TextSelection.create(editor.state.doc, activeMatch.to))
-				.scrollIntoView()
 				.setMeta(jumpHighlightKey, { from: activeMatch.from, to: activeMatch.to }),
 		)
-	}, [activeFindMatchIndex, editor, findMatches, findQuery, isFindBarOpen])
+		scrollFindMatchIntoView(activeMatch)
+	}, [activeFindMatchIndex, editor, findMatches, findQuery, isFindBarOpen, scrollFindMatchIntoView])
 
 	useEffect(() => {
 		if (!isFindBarOpen) return
@@ -948,7 +993,10 @@ export function Editor({ ydoc, docId, projectDoc, isActivePane, onFocus, classNa
 						</div>
 					) : null}
 
-					<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+					<div
+						ref={editorScrollRegionRef}
+						className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+					>
 						<div className={`px-6 py-5 sm:px-12 sm:py-8 lg:py-10 ${isFocusMode ? 'lg:px-20 xl:px-24 2xl:px-32' : 'lg:px-14 xl:px-16'}`}>
 							<EditorContent editor={editor} />
 						</div>
